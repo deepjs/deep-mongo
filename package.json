@@ -1,0 +1,34 @@
+{
+  "name": "deep-mongo",
+  "description":"mongo driver (protocole/stores) for deepjs",
+  "author":{
+    "name": "Gilles Coomans",
+    "email": "gilles.coomans@gmail.com"
+  }, 
+  "version": "0.1.0",
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nomocas/deep-mongo.git"
+  },
+  "maintainers": [
+    {
+      "name": "Philippe Delabye",
+      "email": "phil@chemicalrules.net"
+    }
+  ],
+  "dependencies": {
+    "deep": ">=0.9.3.1",
+    "pintura":"git+ssh://git@dev.ubik.be/pintura",
+    "perstore":"git+ssh://git@dev.ubik.be/perstore",
+    "mongodb": "https://github.com/mongodb/node-mongodb-native.git",
+    "rql": ">=0.3.0"
+  },
+  "mappings":{
+    "deep": "git+ssh://git@dev.ubik.be/deep"
+  },
+  "engine":{
+  	"node":">=0.10.0"
+  },
+  "main":"./lib/main"
+}
