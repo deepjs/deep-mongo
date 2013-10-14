@@ -1,115 +1,148 @@
+"use strict";
 if(typeof define !== 'function'){
 	var define = require('amdefine')(module);
 }
 define(function(require){
-var MongoDB = require("perstore/store/mongodb").MongoDB;
-var deep = require("deep/deep");
-var when = deep.when;
-var errors = require("autobahn/errors");
+var deep = require("deep");
+var mongo = require('mongodb'),
+ObjectID = require('bson/lib/bson/objectid').ObjectID,
+rqlToMongo = require("./rql-to-mongo");
 
-var Mongo = function(url, collection, schema){
+deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, collectionName, schema, options){
 	if(schema)
 		this.schema = schema;
 	if(url)
-		this.dbURL = url;
-	if(collection)
-		this.collectionName = collection;
-}
-Mongo.prototype =  {
-		dbURL:null,
+		this.url = url;
+	if(collectionName)
+		this.collectionName = collectionName;
+	if(options)
+		deep.utils.up(options, this);
+},
+{
+		url:null,
 		collectionName:null,
 		init:function(options){
-			console.log("MONGO DB : init _________________________________ ",this.dbURL, this.collectionName)
-			this.mongo = MongoDB({url:this.dbURL, collection: this.collectionName});
+			if(this.initialised)
+				return this.initialised;
+			options = options || {};
+			var url = options.url || this.url;
+			if(!url)
+				return deep.errors.Store("Mongo failed to init : no url provided !");
+			var collectionName = options.collectionName || this.collectionName;
+			var self = this;
+			var def = deep.Deferred();
+			mongo.connect(url, function(err, db){
+				if(err){
+					console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
+					def.reject(err);
+				}
+				else {
+					db.collection(collectionName, function(err, coll){
+						if(err){
+							console.error("Failed to load mongo database collection : " + url + " : " + collectionName + " error " + err.message);
+							def.reject(err);
+						}else{
+							self.collection = coll;
+							console.log("MONGO DB : initialised : ",url, collectionName);
+							def.resolve(coll);
+						}
+					});
+				}
+			});
+			return this.initialised = def.promise();
 		},
 		get: function(id, options){
-			try{
-			//if(console && console.flags && console.flags["Mongorest"])
 			//console.log("Mongo : get : ", id, options);//
 			options = options || {};
-
-			var headers = {};
-			if(options.response)
-				headers = options.response.headers || {};
-			if(this.headers)
-				deep.utils.bottom(this.headers, headers);
-			//console.log("mongo after set headers : ", headers);
-			return when(this.mongo.get(id, headers)).then(function(res){
-				//console.log("mongstore (real) response : ",res);
+			if(id[0] === "?")
+				return this.query(id, options);
+			var def = deep.Deferred();
+			var self = this;
+			self.collection.findOne({id: id}, function(err, obj){
+				if (err) return def.reject(err);
+				if (obj) delete obj._id;
+				if(obj === null)
+					obj = undefined;
+				def.resolve(obj);
+			});
+			return def.promise()
+			.done(function(res){
+				//console.log("mongstore (real) get response : ",res);
 				if(typeof res === 'undefined' || res === null)
-					return errors.NotFound();
+					return deep.errors.NotFound();
 				if(res && res.headers && res.status && res.body)
-					return new errors.Server(res.body, res.status);
-				return res;
-			}, function(error){
+					return deep.errors.Server(res.body, res.status);
+			})
+			.fail(function(error){
 				console.log("error while calling (get)  Mongoservices - ", error);
-				return new errors.Server(error, 500);
+				return deep.errors.Server(error, 500);
 			});
-			}catch(error){
-				console.log("error (throw) while calling (get) Mongostore : - ", error);
-				return new errors.Server(error, 500);
-			}
 		},
-		put: function(object, options){
-			try{
-			if(console && console.flags && console.flags["Mongorest"])
-				console.log("Mongo : post : ", object)
-
-			var schema = options.schema || this.schema;
-            if (schema) {
-                var report = deep.validate(object, schema);
-                if (!report.valid)
-                    return  deep(deep.errors.PreconditionFail("Failed to put on Mongo : validation failed.", report));
-            }
-
-			return when(this.mongo.put(object, options)).then(function (res){
-				if(res && res.headers && res.status && res.body)
-					return new errors.Server(res.body, res.status);
-				return res;
-			},function  (error) {
-				// body...
-				console.log("error while calling Mongoservices : - ", error);
-				return new errors.Server(error, 500);
-				//return  { status:500, headers:{}, body:["error 500 (Mongo store put)"]};
-			});
-			}catch(error){
-				console.log("error (throw) while calling Mongostore :  - ", error);
-				return new errors.Server(error, 500);
-				//return  { status:500, headers:{}, body:["error 500 (Mongo store put)"]};
-			}
-		},
-		post: function(object, options){
-			
+		post: function(object, options)
+		{
+			var deferred = deep.Deferred();
 			options = options || {};
-			try{
-			if(console && console.flags && console.flags["Mongorest"])
-				console.log("deep.stores.Mongo.post : ", object)
-
-			var schema = options.schema || this.schema;
-            if (schema) {
-                var report = deep.validate(object, schema);
-                if (!report.valid)
-                    return  deep(deep.errors.PreconditionFail("Failed to put on Mongo : validation failed.", report));
-            }
-
-			return when(this.mongo.put(object, options)).then(function(res){
-				if(res && res.headers && res.status && res.body)
-					return new errors.Server(res.body, res.status);
-				return res;
-			}, function  (error) {
-				console.log("error while calling deep.stores.Mongo.post :  - ", error);
-				return new errors.Server(error, 500);
+			var id = options.id || object.id;
+			if (!object.id) object.id = id;
+			var self = this;
+			var search = {id: id};
+			self.collection.findOne(search, function(err, found){
+				if (err)
+					return deferred.reject(err);
+				if (found === null)
+				{
+					if (!object.id) object.id = ObjectID.createPk().toJSON();
+					self.collection.insert(object, function(err, obj){
+						if (err)
+							return deferred.reject(err);
+						obj = obj && obj[0];
+						if (obj)
+							delete obj._id;
+						//console.log("mongstore (real) post response : ",obj);
+						deferred.resolve(obj);
+					});
+				}
+				else
+					deferred.reject(deep.errors.Store("Mongo store : post failed : "+id + " exists, and can't be overwritten"));
 			});
-			}catch(error){
-				console.log("error (throw) while calling deep.stores.Mongo.post :  - ", error);
-				return new errors.Server(error, 500);
-				//throw new Error("error while Mongorest.post : ", error);
-			}
+			return deferred.promise()
+			.then(function (res){
+				if(res && res.headers && res.status && res.body)
+					return deep.errors.Server(res.body, res.status);
+			},function  (error) {
+				console.log("error while calling Mongoservices : - ", error);
+				return deep.errors.Server(error, 500);
+			});
 		},
-		query: function(query, options){
+		put: function(object, options)
+		{
+			var deferred = deep.Deferred();
+			options = options || {};
+			var id = options.id || object.id;
+			if (!object.id) object.id = id;
+			var search = {id: id};
+			var self = this;
+			self.collection.update(search, object, {upsert:false, safe:true}, function(err, obj){
+				if (err)
+					return deferred.reject(err);
+				if (obj)
+					delete obj._id;
+				//console.log("mongstore (real) put response : ", object);
+				deferred.resolve(object);
+			});
+			return deferred.promise()
+			.then(function (res){
+				if(res && res.headers && res.status && res.body)
+					return deep.errors.Server(res.body, res.status);
+			},function  (error) {
+				console.log("error while calling Mongoservices : - ", error);
+				return deep.errors.Server(error, 500);
+			});
+		},
+		query: function(query, options)
+		{
 			//console.log("deep.stores.Mongo query : ", query, options);
 			options = options || {};
-			try{
 
 			var headers = (options.response && options.response.headers) || {};
 
@@ -120,28 +153,96 @@ Mongo.prototype =  {
 				headers.range = "items=" + headers.start + '-' + headers.end;
 			}
 			query = query.replace(/\$[1-9]/g, function(t){
-				return JSONExt.stringify(headers.parameters[t.substring(1) - 1]);
+				return JSON.stringify(headers.parameters[t.substring(1) - 1]);
 			});
-			//hack to remove "&null" at the end of request coming from nowhere...
-			var nullCharAtEnd = query.substring(query.length - 5, query.length);
-			if(nullCharAtEnd == "&null")
-				query = query.substring(0, query.length - 5);
 
+			var deferred = deep.Deferred();
+			var self = this;
+			// compose search conditions
+			var x = rqlToMongo.parse(query, options);
+			var meta = x[0], search = x[1];
+
+			// range of non-positive length is trivially empty
+			//if (options.limit > options.totalCount)
+			//	options.limit = options.totalCount;
+			if (meta.limit <= 0) {
+				var results = [];
+				results.totalCount = 0;
+				return results;
+			}
+
+			// request full recordset length
+			// N.B. due to collection.count doesn't respect meta.skip and meta.limit
+			// we have to correct returned totalCount manually.
+			// totalCount will be the minimum of unlimited query length and the limit itself
+			function getCount(arg){
+				var def  = deep.Deferred();
+				self.collection.count(arg, function(err, count) {
+					if(err)
+						return def.reject(err);
+					def.resolve(count);
+				});
+				return def.promise();
+			}
+		
+			var totalCountPromise = (meta.totalCount) ?
+				getCount(search).done(function(totalCount){
+					totalCount -= meta.lastSkip;
+					if (totalCount < 0)
+						totalCount = 0;
+					if (meta.lastLimit < totalCount)
+						totalCount = meta.lastLimit;
+					// N.B. just like in rql/js-array
+					return Math.min(totalCount, typeof meta.totalCount === "number" ? meta.totalCount : Infinity);
+				}) : undefined;
+
+			// request filtered recordset
+			self.collection.find(search, meta, function(err, cursor){
+				if (err)
+					return deferred.reject(err);
+				cursor.toArray(function(err, results){
+					if (err)
+						return deferred.reject(err);
+					// N.B. results here can be [{$err: 'err-message'}]
+					// the only way I see to distinguish from quite valid result [{_id:..., $err: ...}] is to check for absense of _id
+					if (results && results[0] && results[0].$err !== undefined && results[0]._id === undefined)
+						return deferred.reject(results[0].$err);
+					var fields = meta.fields;
+					var len = results.length;
+					// damn ObjectIDs!
+					for (var i = 0; i < len; i++) {
+						delete results[i]._id;
+					}
+					// total count
+					deep.when(totalCountPromise)
+					.done(function (result){
+						results.count = results.length;
+						results.start = meta.skip;
+						results.end = meta.skip + results.count;
+						results.schema = self.schema;
+						results.totalCount = result;
+						deferred.resolve(results);
+					})
+					.fail(function (error) {
+						deferred.reject(error);
+					});
+				});
+			});
 			//console.log("deep.stores.Mongo will do query : ", query);
-			return when(this.mongo.query(query, headers)).then(function(results){
+			return deferred.promise().then(function(results){
 				//console.log("deep.stores.Mongo query res : ", results);
 				if(typeof results === 'undefined' || results === null)
-					return errors.NotFound();
+					return deep.errors.NotFound();
 				if(results && results.headers && results.status && results.body)
-					return new errors.Server(results.body, results.status);
+					return deep.errors.Server(results.body, results.status);
 				if(!options.range)
 					if(results && results._range_object_)
 						return Array.prototype.slice.apply(results.results);
 					else
 						return Array.prototype.slice.apply(results);
-				return deep(results.totalCount)
+				return deep.when(results.totalCount)
 				.done(function (count) {
-					//console.log("deep.stores.Mongo range query res : ", results);
+					console.log("deep.stores.Mongo range query res : ", results);
 					var res = deep.utils.createRangeObject(results.start, results.end-1, count);
 					delete results.count;
 					delete results.start;
@@ -154,18 +255,25 @@ Mongo.prototype =  {
 				});
 			},function  (error) {
 				console.log("error while calling (query) Mongoservices :  - ", error);
-				return new errors.Server(error, 500);
+				return deep.errors.Server(error, 500);
 			});
-			}catch(error){
-				console.log("error (throw) while calling  (query)  Mongostore :  - ", error);
-				return new errors.Server(error, 500);
-			}
 		},
 		"delete": function(id, options){
-			
-			return this.mongo.delete(id);
+			var deferred = deep.Deferred();
+			var search = {id: id};
+			this.collection.remove(search, function(err, result){
+				if (err) return deferred.reject(err);
+				deferred.resolve(true);
+			});
+			return deferred.promise();
 		}
-	}
+	});
 
-return Mongo;
-})
+	deep.utils.sheet(deep.store.ObjectSheet, deep.store.Mongo.prototype);
+
+	deep.store.Mongo.create = function(protocole, url, collection, schema, options){
+		return new deep.store.Mongo(protocole, url, collection, schema, options);
+	};
+
+	return deep.store.Mongo;
+});
