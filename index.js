@@ -8,6 +8,7 @@ var mongo = require('mongodb'),
 ObjectID = require('bson/lib/bson/objectid').ObjectID,
 rqlToMongo = require("./rql-to-mongo");
 
+
 deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, collectionName, schema, options){
 	if(schema)
 		this.schema = schema;
@@ -23,7 +24,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		collectionName:null,
 		init:function(options){
 			if(this.initialised)
-				return this.initialised;
+				return this.initialised.promise();
+			console.log("MONGO STORE INIT ");
 			options = options || {};
 			var url = options.url || this.url;
 			if(!url)
@@ -31,31 +33,32 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var collectionName = options.collectionName || this.collectionName;
 			var self = this;
 			var def = deep.Deferred();
+			//console.log("MONGO STORE INIT : try connect");
 			mongo.connect(url, function(err, db){
 				if(err){
 					console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
 					def.reject(err);
 				}
-				else {
-					db.collection(collectionName, function(err, coll){
+				else
+					db.collection(collectionName, function (err, coll){
 						if(err){
 							console.error("Failed to load mongo database collection : " + url + " : " + collectionName + " error " + err.message);
 							def.reject(err);
 						}else{
 							self.collection = coll;
 							console.log("MONGO DB : initialised : ",url, collectionName);
-							def.resolve(coll);
+							def.resolve(self);
 						}
 					});
-				}
 			});
-			return this.initialised = def.promise();
+			this.initialised = def
+			return def.promise();
 		},
 		get: function(id, options){
 			//console.log("Mongo : get : ", id, options);//
 			options = options || {};
 			if(id[0] === "?")
-				return this.query(id, options);
+				return this.query(id.substring(1), options);
 			var def = deep.Deferred();
 			var self = this;
 			self.collection.findOne({id: id}, function(err, obj){
@@ -74,12 +77,13 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.errors.Server(res.body, res.status);
 			})
 			.fail(function(error){
-				console.log("error while calling (get)  Mongoservices - ", error);
-				return deep.errors.Server(error, 500);
+				//console.log("error while calling (get)  Mongoservices - for id : "+id, error);
+				return deep.errors.NotFound(error);
 			});
 		},
 		post: function(object, options)
 		{
+			//console.log("Mongo will do post")
 			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
@@ -110,8 +114,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				if(res && res.headers && res.status && res.body)
 					return deep.errors.Server(res.body, res.status);
 			},function  (error) {
-				console.log("error while calling Mongoservices : - ", error);
-				return deep.errors.Server(error, 500);
+				//console.log("error while calling Mongoservices : - ", error);
+				return deep.errors.Post(error);
 			});
 		},
 		put: function(object, options)
@@ -135,8 +139,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				if(res && res.headers && res.status && res.body)
 					return deep.errors.Server(res.body, res.status);
 			},function  (error) {
-				console.log("error while calling Mongoservices : - ", error);
-				return deep.errors.Server(error, 500);
+				//console.log("error while calling Mongoservices : - ", error);
+				return deep.errors.Put(error);
 			});
 		},
 		query: function(query, options)
@@ -242,7 +246,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 						return Array.prototype.slice.apply(results);
 				return deep.when(results.totalCount)
 				.done(function (count) {
-					console.log("deep.stores.Mongo range query res : ", results);
+					//console.log("deep.stores.Mongo range query res : ", results);
 					var res = deep.utils.createRangeObject(results.start, results.end-1, count);
 					delete results.count;
 					delete results.start;
@@ -254,11 +258,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return res;
 				});
 			},function  (error) {
-				console.log("error while calling (query) Mongoservices :  - ", error);
-				return deep.errors.Server(error, 500);
+				//console.log("error while calling (query) Mongoservices :  - ", error);
+				return deep.errors.Store(error);
 			});
 		},
-		"delete": function(id, options){
+		del: function(id, options){
 			var deferred = deep.Deferred();
 			var search = {id: id};
 			this.collection.remove(search, function(err, result){
