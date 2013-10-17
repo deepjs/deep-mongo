@@ -123,21 +123,47 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
-			if (!object.id) object.id = id;
+			if (!object.id && !options.query)
+				object.id = id;
 			var search = {id: id};
 			var self = this;
-			self.collection.update(search, object, {upsert:false, safe:true}, function(err, obj){
-				if (err)
-					return deferred.reject(err);
-				if (obj)
-					delete obj._id;
-				//console.log("mongstore (real) put response : ", object);
-				deferred.resolve(object);
-			});
+			var schema = this.schema;
+
+			var doUpdate = function(obj){
+				if(schema)
+				{
+					if(schema._deep_ocm_)
+						schema = schema("put");
+					var report = deep.validate(obj, schema);
+					if(!report.valid)
+						return deferred.reject(deep.errors.PreconditionFail(report));
+				}
+				self.collection.update(search, object, {upsert:false, safe:true}, function(err, obj){
+					if (err)
+						return deferred.reject(err);
+					if (obj)
+						delete obj._id;
+					//console.log("mongstore (real) put response : ", object);
+					deferred.resolve(obj);
+				});
+			};
+
+			if(options.query)
+				self.collection.findOne({id: id}, function(err, obj){
+					if (err)
+						return deferred.reject(err);
+					if (obj)
+						return deferred.reject(deep.errors.Put("no object found to put with query"));
+					deep.utils.replace(obj, options.query, object);
+					doUpdate(obj);
+				});
+			else
+				doUpdate(object);
+			
 			return deferred.promise()
 			.then(function (res){
 				if(res && res.headers && res.status && res.body)
-					return deep.errors.Server(res.body, res.status);
+					return deep.errors.Internal(res.body, res.status);
 			},function  (error) {
 				//console.log("error while calling Mongoservices : - ", error);
 				return deep.errors.Put(error);
