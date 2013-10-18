@@ -51,7 +51,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 						}
 					});
 			});
-			this.initialised = def
+			this.initialised = def;
 			return def.promise();
 		},
 		get: function(id, options){
@@ -87,7 +87,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
-			if (!object.id) object.id = id;
+			if (!object.id)
+				object.id = id;
 			var self = this;
 			var search = {id: id};
 			self.collection.findOne(search, function(err, found){
@@ -138,12 +139,13 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					if(!report.valid)
 						return deferred.reject(deep.errors.PreconditionFail(report));
 				}
-				self.collection.update(search, object, {upsert:false, safe:true}, function(err, obj){
+				//console.log("mongo.put : search : ", search, " - obj : ", obj);
+				self.collection.update(search, obj, {upsert:false, safe:true}, function(err, response){
 					if (err)
 						return deferred.reject(err);
 					if (obj)
-						delete obj._id;
-					//console.log("mongstore (real) put response : ", object);
+						delete response._id;
+					//console.log("mongstore (real) put response : ", response);
 					deferred.resolve(obj);
 				});
 			};
@@ -304,6 +306,9 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 	deep.store.Mongo.create = function(protocole, url, collection, schema, options){
 		return new deep.store.Mongo(protocole, url, collection, schema, options);
 	};
+
+	deep.coreUnits = deep.coreUnits || [];
+    deep.coreUnits.push("js::deep-mongo/units/generic");
 
 	return deep.store.Mongo;
 });
