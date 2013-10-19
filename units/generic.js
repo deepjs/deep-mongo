@@ -25,7 +25,7 @@ define(["require","deep/deep", "deep/deep-unit"], function (require, deep, Unit)
     var unit = {
         title:"deep-mongo generic testcases",
         setup:function(){
-            return this.options.context.init();
+            return require("deep-mongo").create(null, "mongodb://127.0.0.1:27017/test", "items3");
         },
         tests : {
             post:function(){
@@ -108,8 +108,6 @@ deep.store("myobjects")
 ])
 .log();
 */
-    unit = new Unit(unit, {
-        context:require("deep-mongo").create(null, "mongodb://127.0.0.1:27017/test", "items3")
-    });
+    unit = new Unit(unit);
     return unit;
 });
