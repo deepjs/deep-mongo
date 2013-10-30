@@ -1,15 +1,12 @@
 {
   "name": "deep-mongo",
   "description":"mongodb driver (store) for deep",
-  "author":{
-    "name": "Gilles Coomans",
-    "email": "gilles.coomans@gmail.com"
-  }, 
-  "version": "0.1.0",
+  "author":"Gilles Coomans", 
+  "version": "0.3.0",
   "contributors": [],
   "repository": {
     "type": "git",
-    "url": "git://github.com/nomocas/deep-node-fs.git"
+    "url": "https://github.com/deepjs/deep-mongo.git"
   },
   "maintainers": [
     {
