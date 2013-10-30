@@ -35,9 +35,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var def = deep.Deferred();
 			//console.log("MONGO STORE INIT : try connect");
 			mongo.connect(url, function(err, db){
+				self.db = function(){ return db; };
+
 				if(err){
 					console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
-					def.reject(err);
+					return def.reject(err);
 				}
 				else
 					db.collection(collectionName, function (err, coll){
@@ -49,6 +51,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 							console.log("MONGO DB : initialised : ",url, collectionName);
 							def.resolve(self);
 						}
+
 					});
 			});
 			this.initialised = def;
@@ -57,8 +60,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		get: function(id, options){
 			//console.log("Mongo : get : ", id, options);//
 			options = options || {};
-			if(id[0] === "?")
-				return this.query(id.substring(1), options);
+			if(id[0] === "?" || !id)
+				return this.query(id.substring(1), options)
+				/*.done(function(s){
+					console.log("res from mongo get : ", s);
+				});*/
 			var def = deep.Deferred();
 			var self = this;
 			self.collection.findOne({id: id}, function(err, obj){
@@ -77,7 +83,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.errors.Server(res.body, res.status);
 			})
 			.fail(function(error){
-				//console.log("error while calling (get)  Mongoservices - for id : "+id, error);
+				console.log("error while calling (get)  Mongoservices - for id : "+id, error);
 				return deep.errors.NotFound(error);
 			});
 		},
@@ -171,67 +177,61 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				return deep.errors.Put(error);
 			});
 		},
+		MAX_QUERY_LIMIT:500,
 		query: function(query, options)
 		{
-			//console.log("deep.stores.Mongo query : ", query, options);
 			options = options || {};
 
-			var headers = (options.response && options.response.headers) || {};
-
-			//headers["Accept-Language"] = options["accept-language"];
-			if(this.headers)
-				deep.utils.bottom(this.headers, headers);
-			if(headers.start || headers.end){
-				headers.range = "items=" + headers.start + '-' + headers.end;
-			}
-			query = query.replace(/\$[1-9]/g, function(t){
-				return JSON.stringify(headers.parameters[t.substring(1) - 1]);
-			});
+			var parsingDirectives = {}
 
 			var deferred = deep.Deferred();
 			var self = this;
+
+			var noRange = false;
+			// add max limit
+			if(!options.start && !options.end)
+			{
+				noRange = true;
+				options.start = 0;
+				options.end = this.MAX_QUERY_LIMIT;
+			}
+			options.start = options.start || 0;
+			options.end = options.end || 0;
+			if(options.end - options.start > this.MAX_QUERY_LIMIT)
+				options.end = options.start + this.MAX_QUERY_LIMIT;
+
+			query += "&limit("+((options.end-options.start)+1)+","+options.start+")";
+
 			// compose search conditions
-			var x = rqlToMongo.parse(query, options);
+			var x = rqlToMongo.parse(query, parsingDirectives);
 			var meta = x[0], search = x[1];
 
 			// range of non-positive length is trivially empty
 			//if (options.limit > options.totalCount)
 			//	options.limit = options.totalCount;
 			if (meta.limit <= 0) {
-				var results = [];
-				results.totalCount = 0;
-				return results;
+				var rangeObject = deep.utils.createRangeObject(0, 0, 0);
+				rangeObject.results = [];
+				rangeObject.count = 0;
+				rangeObject.query = query;
+				return rangeObject;
 			}
 
 			// request full recordset length
 			// N.B. due to collection.count doesn't respect meta.skip and meta.limit
 			// we have to correct returned totalCount manually.
 			// totalCount will be the minimum of unlimited query length and the limit itself
-			function getCount(arg){
-				var def  = deep.Deferred();
-				self.collection.count(arg, function(err, count) {
-					if(err)
-						return def.reject(err);
-					def.resolve(count);
-				});
-				return def.promise();
-			}
-		
-			var totalCountPromise = (meta.totalCount) ?
-				getCount(search).done(function(totalCount){
-					totalCount -= meta.lastSkip;
-					if (totalCount < 0)
-						totalCount = 0;
-					if (meta.lastLimit < totalCount)
-						totalCount = meta.lastLimit;
-					// N.B. just like in rql/js-array
-					return Math.min(totalCount, typeof meta.totalCount === "number" ? meta.totalCount : Infinity);
-				}) : undefined;
+			
+
+			var totalCountPromise = null;
+			if(!noRange)
+				totalCountPromise = this.count(search);
 
 			// request filtered recordset
 			self.collection.find(search, meta, function(err, cursor){
 				if (err)
 					return deferred.reject(err);
+				//console.log("mongo cursor : ", cursor);
 				cursor.toArray(function(err, results){
 					if (err)
 						return deferred.reject(err);
@@ -245,15 +245,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					for (var i = 0; i < len; i++) {
 						delete results[i]._id;
 					}
-					// total count
+					if(noRange)
+						return deferred.resolve(results);
 					deep.when(totalCountPromise)
 					.done(function (result){
-						results.count = results.length;
-						results.start = meta.skip;
-						results.end = meta.skip + results.count;
-						results.schema = self.schema;
-						results.totalCount = result;
-						deferred.resolve(results);
+						var rangeObject = deep.utils.createRangeObject(options.start, Math.max(options.start,options.start+results.length-1), result);
+						rangeObject.count = results.length;
+						rangeObject.query = query;
+						rangeObject.results = results.concat([]);
+						deferred.resolve(rangeObject);
 					})
 					.fail(function (error) {
 						deferred.reject(error);
@@ -267,24 +267,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.errors.NotFound();
 				if(results && results.headers && results.status && results.body)
 					return deep.errors.Server(results.body, results.status);
-				if(!options.range)
-					if(results && results._range_object_)
-						return Array.prototype.slice.apply(results.results);
-					else
-						return Array.prototype.slice.apply(results);
-				return deep.when(results.totalCount)
-				.done(function (count) {
-					//console.log("deep.stores.Mongo range query res : ", results);
-					var res = deep.utils.createRangeObject(results.start, results.end-1, count);
-					delete results.count;
-					delete results.start;
-					delete results.end;
-					delete results.schema;
-					delete results.totalCount;
-					res.results = Array.prototype.slice.apply(results);
-					res._range_object_ = true;
-					return res;
-				});
 			},function  (error) {
 				//console.log("error while calling (query) Mongoservices :  - ", error);
 				return deep.errors.Store(error);
@@ -298,10 +280,39 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				deferred.resolve(true);
 			});
 			return deferred.promise();
+		},
+		range:function(start, end, query)
+		{
+			return this.query(query || "", { start:start, end:end });
+		},
+		flush:function(options){
+			var def = deep.Deferred();
+			var self = this;
+			this.init()
+			.done(function(success){
+				self.db().dropDatabase(function(err, done)
+				{
+					if(err)
+						def.reject(err);
+					def.resolve(done || true);
+				});
+			});
+			return def.promise();
+		},
+		count:function (arg){
+			var def  = deep.Deferred();
+			this.collection.count(arg, function(err, totalCount) {
+				if(err)
+					return def.reject(err);
+				return def.resolve(totalCount);
+			});
+			return def.promise();
 		}
 	});
 
 	deep.utils.sheet(deep.store.ObjectSheet, deep.store.Mongo.prototype);
+
+	//console.log("MONGOSTORE afetr sheet : ",deep.store.Mongo.prototype )
 
 	deep.store.Mongo.create = function(protocole, url, collection, schema, options){
 		return new deep.store.Mongo(protocole, url, collection, schema, options);
