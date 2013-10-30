@@ -3,7 +3,7 @@ if(typeof define !== 'function'){
 	var define = require('amdefine')(module);
 }
 define(function(require){
-var deep = require("deep");
+var deep = require("deepjs");
 var mongo = require('mongodb'),
 ObjectID = require('bson/lib/bson/objectid').ObjectID,
 rqlToMongo = require("./rql-to-mongo");
