@@ -2,7 +2,7 @@ if (typeof define !== 'function') {
     var define = require('amdefine')(module);
 }
 
-define(["require","deep/deep", "deep/deep-unit"], function (require, deep, Unit) {
+define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, Unit) {
     
     //_______________________________________________________________ GENERIC STORE TEST CASES
     var postTest = {

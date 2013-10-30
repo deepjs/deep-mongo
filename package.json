@@ -1,27 +1,26 @@
 {
   "name": "deep-mongo",
-  "description":"mongodb driver (store) for deep",
-  "author":"Gilles Coomans", 
+  "description":"mongodb driver (store) for deepjs",
+  "author":"Gilles Coomans <gilles.coomans@gmail.com>", 
   "version": "0.3.0",
-  "contributors": [],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/deepjs/deep-mongo.git"
-  },
-  "maintainers": [
+  "contributors": [
     {
       "name": "Philippe Delabye",
       "email": "phil@chemicalrules.net"
     }
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepjs/deep-mongo.git"
+  },
+  "maintainers": [
+  ],
   "dependencies": {
-    "deep": "https://github.com/deepjs/deepjs.git",
+    "deepjs": ">=0.9.5",
     "mongodb":"0.9.9-8",
     "bson":">=0.2.3"
   },
   "mappings":{
-    "deep":"https://github.com/deepjs/deepjs.git",
-    "mongodb":"https://github.com/christkv/node-mongodb-native.git",
   },
   "engine":{
     "node" : ">=0.10.0" 
