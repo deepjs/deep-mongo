@@ -16,10 +16,12 @@
   ],
   "dependencies": {
     "deep": "https://github.com/deepjs/deepjs.git",
-    "mongodb":"https://github.com/christkv/node-mongodb-native.git",
+    "mongodb":"0.9.9-8",
     "bson":">=0.2.3"
   },
   "mappings":{
+    "deep":"https://github.com/deepjs/deepjs.git",
+    "mongodb":"https://github.com/christkv/node-mongodb-native.git",
   },
   "engine":{
     "node" : ">=0.10.0" 
