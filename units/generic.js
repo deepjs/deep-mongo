@@ -86,6 +86,61 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                     if(delDone && error.status == 404)
                         return true;
                 });
+            },
+            range:function(){
+                var self = this;
+                return deep.store(this)
+                .run("flush")
+                .done(function(s){
+                    this.post({title:"hello"})
+                    .post({title:"hell"})
+                    .post({title:"heaven"})
+                    .post({title:"helicopter"})
+                    .post({title:"heat"})
+                    .post({title:"here"})
+                    .range(2,4)
+                    .done(function(range){
+                        deep.utils.remove(range.results,".//id");
+                        deep.chain.remove(this, ".//id");
+                    })
+                    .log()
+                    .logValues()
+                    .equal({ _deep_range_: true,
+                      total: 6,
+                      count: 3,
+                      results:
+                       [ { title: 'heaven' },
+                         { title: 'helicopter' },
+                         { title: 'heat' } ],
+                      start: 2,
+                      end: 4,
+                      hasNext: true,
+                      hasPrevious: true,
+                      query: '&limit(3,2)'
+                    })
+                    .valuesEqual([ 
+                        { title: 'heaven' },
+                        { title: 'helicopter' },
+                        { title: 'heat' } 
+                    ]);
+
+                    /*
+                    .equal( {
+                     "_deep_range_": true,
+                     "total": 6,
+                     "count": 3,
+                     "results": [
+                      "heaven",
+                      "helicopter",
+                      "heat"
+                     ],
+                     "start": 2,
+                     "end": 4,
+                     "hasNext": true,
+                     "hasPrevious": true
+                    })
+                    .valuesEqual(["heaven","helicopter","heat"]);*/
+                });
             }
         }
     };
