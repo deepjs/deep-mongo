@@ -25,6 +25,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		init:function(options){
 			if(this.initialised)
 				return this.initialised.promise();
+			console.time("mongo.init");
+
 			console.log("MONGO STORE INIT ");
 			options = options || {};
 			var url = options.url || this.url;
@@ -43,6 +45,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				}
 				else
 					db.collection(collectionName, function (err, coll){
+						console.timeEnd("mongo.init");
+
 						if(err){
 							console.error("Failed to load mongo database collection : " + url + " : " + collectionName + " error " + err.message);
 							def.reject(err);
