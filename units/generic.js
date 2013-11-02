@@ -25,16 +25,16 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
     var unit = {
         title:"deep-mongo generic testcases",
         setup:function(){
-            return require("deep-mongo").create(null, "mongodb://127.0.0.1:27017/test", "items3");
+            return require("deep-mongo").create(null, "mongodb://127.0.0.1:27017/test", "items3").init();
         },
+        clean:deep.compose.before(function (){
+            this.context.flush();
+        }),
         tests : {
             post:function(){
                 return deep.store(this)
-                //.log("chain store init in test")
-                .log("post")
                 .post( postTest )
                 .equal( postTest )
-                .log("get")
                 .get("id123")
                 .equal(postTest);
             },
@@ -42,25 +42,20 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 // post
                 return deep.store(this)
                 // put
-                .log("put")
                 .put(putTest)
                 .equal( putTest )
-                .log("get")
                 .get("id123")
                 .equal( putTest );
             },
             patch:function(){
                 // post
                 return deep.store(this)
-                .log("patch")
                 .patch({
                     order:4,
                     newVar:true,
                     id:"id123"
                 })
                 .equal(patchTest)
-                //.log("patch")
-                .log("get")
                 .get("id123")
                 .equal(patchTest);
             },
@@ -68,19 +63,16 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 // post
                 return deep.store(this)
                 // query
-                .log("query")
                 .get("?order=4")
                 .equal([patchTest]);
             },
             del:function () {
                 var delDone = false;
                 return deep.store(this)
-                .log("del")
                 .del("id123")
                 .done(function (argument) {
                     delDone = true;
                 })
-                .log("get")
                 .get("id123")
                 .fail(function(error){
                     if(delDone && error.status == 404)
@@ -90,7 +82,7 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
             range:function(){
                 var self = this;
                 return deep.store(this)
-                .run("flush")
+                //.run("flush")
                 .done(function(s){
                     this.post({title:"hello"})
                     .post({title:"hell"})
@@ -103,8 +95,6 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                         deep.utils.remove(range.results,".//id");
                         deep.chain.remove(this, ".//id");
                     })
-                    .log()
-                    .logValues()
                     .equal({ _deep_range_: true,
                       total: 6,
                       count: 3,
@@ -118,28 +108,11 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                       hasPrevious: true,
                       query: '&limit(3,2)'
                     })
-                    .valuesEqual([ 
+                    .valuesEqual([
                         { title: 'heaven' },
                         { title: 'helicopter' },
-                        { title: 'heat' } 
+                        { title: 'heat' }
                     ]);
-
-                    /*
-                    .equal( {
-                     "_deep_range_": true,
-                     "total": 6,
-                     "count": 3,
-                     "results": [
-                      "heaven",
-                      "helicopter",
-                      "heat"
-                     ],
-                     "start": 2,
-                     "end": 4,
-                     "hasNext": true,
-                     "hasPrevious": true
-                    })
-                    .valuesEqual(["heaven","helicopter","heat"]);*/
                 });
             }
         }
