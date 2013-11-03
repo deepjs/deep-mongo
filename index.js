@@ -206,6 +206,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 
 			query += "&limit("+((options.end-options.start)+1)+","+options.start+")";
 
+			if(query[0] == "?")
+				query = query.substring(1);
 			// compose search conditions
 			var x = rqlToMongo.parse(query, parsingDirectives);
 			var meta = x[0], search = x[1];
