@@ -134,6 +134,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
+			if(!id)
+				return deep.when(deep.errors.Put("need id on put!"));
 			if (!object.id && !options.query)
 				object.id = id;
 			var search = {id: id};
