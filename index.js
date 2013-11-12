@@ -64,8 +64,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		get: function(id, options){
 			//console.log("Mongo : get : ", id, options);//
 			options = options || {};
+			if(id == 'schema')
+			{
+				//console.log("deep-mongo : get schema : ", this.schema || {});
+				if(this.schema && this.schema._deep_ocm_)
+					return deep.when(this.schema("get"));
+				return this.schema || {};
+			}
 			if(id[0] === "?" || !id)
-				return this.query(id.substring(1), options)
+				return this.query(id.substring(1), options);
 				/*.done(function(s){
 					console.log("res from mongo get : ", s);
 				});*/
