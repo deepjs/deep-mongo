@@ -16,7 +16,7 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 
 ```javascript
 
-	var deep = require("deep");
+	var deep = require("deepjs");
 	require("deep-mongo").create("items", "mongodb://127.0.0.1:27017/test", "items");
 
 	deep.store("items")
