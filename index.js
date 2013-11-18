@@ -125,7 +125,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					});
 				}
 				else
-					deferred.reject(deep.errors.Store("Mongo store : post failed : "+id + " exists, and can't be overwritten"));
+					deferred.reject(deep.errors.Conflict("Mongo store : post failed : "+id + " exists, and can't be overwritten"));
 			});
 			return deferred.promise()
 			.then(function (res){
