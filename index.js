@@ -307,11 +307,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			.done(function(success){
 				self.db().dropDatabase(function(err, done)
 				{
+					console.log("deep.mongo store flushed");
 					if(err)
 						def.reject(err);
 					def.resolve(done || true);
 				});
-			});
+			})
+			.fail(function(error){
+				def.reject(error);
+			})
 			return def.promise();
 		},
 		count:function (arg){
