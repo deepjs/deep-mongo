@@ -94,7 +94,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.errors.Server(res.body, res.status);
 			})
 			.fail(function(error){
-				console.log("error while calling (get)  Mongoservices - for id : "+id, error);
+				//console.log("error while calling (get)  Mongoservices - for id : "+id, error);
 				return deep.errors.NotFound(error);
 			});
 		},
