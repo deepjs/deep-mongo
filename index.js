@@ -71,7 +71,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.when(this.schema("get"));
 				return this.schema || {};
 			}
-			if(id[0] === "?" || !id)
+			if(!id || id[0] === "?")
 				return this.query(id.substring(1), options);
 				/*.done(function(s){
 					console.log("res from mongo get : ", s);
