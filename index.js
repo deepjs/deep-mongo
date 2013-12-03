@@ -71,6 +71,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					return deep.when(this.schema("get"));
 				return this.schema || {};
 			}
+			if(!id)
+				id = "";
 			if(!id || id[0] === "?")
 				return this.query(id.substring(1), options);
 				/*.done(function(s){
@@ -194,6 +196,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		query: function(query, options)
 		{
 			options = options || {};
+			if(!query)
+				query = "";
 
 			var parsingDirectives = {}
 
@@ -214,6 +218,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				options.end = options.start + this.MAX_QUERY_LIMIT;
 
 			query += "&limit("+((options.end-options.start)+1)+","+options.start+")";
+
 
 			if(query[0] == "?")
 				query = query.substring(1);
