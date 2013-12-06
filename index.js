@@ -75,9 +75,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				id = "";
 			if(!id || id[0] === "?")
 				return this.query(id.substring(1), options);
-				/*.done(function(s){
-					console.log("res from mongo get : ", s);
-				});*/
 			var def = deep.Deferred();
 			var self = this;
 			self.collection.findOne({id: id}, function(err, obj){
@@ -161,13 +158,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 						return deferred.reject(deep.errors.PreconditionFail(report));
 				}
 				//console.log("mongo.put : search : ", search, " - obj : ", obj);
-				self.collection.update(search, obj, {upsert:false, safe:true}, function(err, response){
+				self.collection.findAndModify(search, null /* sort */, obj, {upsert:false, "new":true}, function(err, response){
 					if (err)
 						return deferred.reject(err);
-					if (obj)
+					if (response)
 						delete response._id;
+					else
+						return deferred.reject(deep.errors.NotFound());
 					//console.log("mongstore (real) put response : ", response);
-					deferred.resolve(obj);
+					deferred.resolve(response);
 				});
 			};
 
