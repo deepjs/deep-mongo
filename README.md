@@ -2,7 +2,9 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 
 ## Required
 
-* deepjs >= v0.9.4
+* deepjs >= v0.9.9
+* mongodb >=0.9.9-8
+* bson >=0.2.3
 * node >= 0.10.0
 
 ## Install
@@ -18,6 +20,8 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 
 	var deep = require("deepjs");
 	require("deep-mongo").create("items", "mongodb://127.0.0.1:27017/test", "items");
+
+	//...
 
 	deep.store("items")
 	.post({ weeeee:"gdgdgdgdgdggd "})
@@ -39,3 +43,6 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 	.log();
 
 ```
+
+
+see [testcases](./units/generic.js) for full usage. full docs coming soon.
