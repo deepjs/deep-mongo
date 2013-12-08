@@ -9,9 +9,7 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 
 ## Install
 ```shell
-	git clone https://github.com/deepjs/deep-mongo
-	cd deep-mongo
-	npm install
+	npm install deep-mongo
 ```
 
 ## Usage
