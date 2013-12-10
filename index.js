@@ -24,53 +24,35 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		collectionName:null,
 		init:function(options){
 			if(this.initialised)
-				return this.initialised.promise();
+				return deep.when.immediate(this);
 			//console.time("mongo.init");
+			this.initialised = true;
 
 			//console.log("MONGO STORE INIT ");
 			options = options || {};
 			var url = options.url || this.url;
 			if(!url)
-				return deep.errors.Store("Mongo failed to init : no url provided !");
+				return deep.when(deep.errors.Store("Mongo failed to init : no url provided !"));
 			var collectionName = options.collectionName || this.collectionName;
 			var self = this;
-			var def = deep.Deferred();
-			var context = deep.context;
 			//console.log("MONGO STORE INIT : try connect");
-			mongo.connect(url, function(err, db){
+			return deep.wrapNodeAsynch(mongo, "connect", [url])
+			.done(function(db){
+				db = db[0];
 				self.db = function(){ return db; };
-				deep.context = context;
-				if(err){
-					console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
-					return def.reject(err);
-				}
-				else
-					db.collection(collectionName, function (err, coll){
-						//console.timeEnd("mongo.init");
-						deep.context = context;
-
-						if(err){
-							console.error("Failed to load mongo database collection : " + url + " : " + collectionName + " error " + err.message);
-							def.reject(err);
-						}else{
-							coll.ensureIndex( { id: 1 }, { unique: true }, function(err, res){
-								deep.context = context;
-								if(err){
-									console.error("Failed to ensuring index on mongo database collection : " + url + " : " + collectionName + " error " + err.message);
-									return def.reject(err);
-								}
-								self.collection = coll;
-								console.log("MONGO DB : initialised : ",url, collectionName);
-								def.resolve(self);
-							});
-							
-						}
-
-					});
+				return deep.wrapNodeAsynch(db, "collection", [collectionName]);
+			})
+			.done(function(coll){
+				coll = coll[0];
+				self.collection = coll;
+				return self.ensureIndex({ id: 1 }, { unique: true });
+			})
+			.done(function(){
+				console.log("MONGO DB : initialised : ",url, collectionName);
+			})
+			.fail(function(err){
+				console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
 			});
-
-			this.initialised = def;
-			return def.promise();
 		},
 		get: function(id, options){
 			//console.log("Mongo : get : ", id, options);//
@@ -86,7 +68,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				id = "";
 			if(!id || id[0] === "?")
 				return this.query(id.substring(1), options);
-			var def = deep.Deferred();
 			var self = this;
 			var schema = this.schema;
 			var search = { id:id };
@@ -102,30 +83,20 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
                         return deep.when(deep.errors.Owner());
 				}
 			}
-			self.collection.findOne(search, function(err, obj){
-				if (err) return def.reject(err);
-				if (obj) delete obj._id;
+			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
+			.done(function(obj){
+				obj = obj[0];
+				if (obj)
+					delete obj._id;
 				else
-					return def.reject(deep.errors.NotFound("maybe ownership restriction"));
-				def.resolve(obj);
-			});
-			return def.promise()
-			.done(function(res){
-				//console.log("mongstore (real) get response : ",res);
-				if(typeof res === 'undefined' || res === null)
-					return deep.errors.NotFound();
-				if(res && res.headers && res.status && res.body)
-					return deep.errors.Server(res.body, res.status);
-			})
-			.fail(function(error){
-				//console.log("error while calling (get)  Mongoservices - for id : "+id, error);
-				return deep.errors.NotFound(error);
+					return deep.errors.NotFound("maybe ownership restriction");
+				return obj;
 			});
 		},
 		post: function(object, options)
 		{
 			//console.log("Mongo will do post")
-			var deferred = deep.Deferred();
+			//var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
 			if (!id)
@@ -146,48 +117,40 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				}
 			}
 			var context = deep.context;
-			self.collection.insert(object, function(err, obj){
-				deep.context = context;
-				if (err)
-				{
-					//console.log("mongo post error : ", err);
-					if(err.code == 11000)
-						return deferred.reject(deep.errors.Conflict());
-					return deferred.reject(err);
-				}
-				obj = obj && obj[0];
+			return deep.wrapNodeAsynch(self.collection,"insert", [object])
+			.fail(function(err){
+				if(err.code == 11000)
+					return deep.errors.Conflict();
+			})
+			.done(function(obj){
+				if(obj && obj[0])
+					obj = obj[0][0];
 				if (obj)
 					delete obj._id;
-				//console.log("mongstore (real) post response : ",obj);
-				deferred.resolve(obj);
-			});
-
-			return deferred.promise()
-			.done(function (res){
-				if(res && res.headers && res.status && res.body)
-					return deep.errors.Server(res.body, res.status);
+				else
+					return deep.errors.NotFound();
+				//console.log("Mongo.post : result from asynch wrap : ", obj);
+				return obj;
 			});
 		},
 		put: function(object, options)
 		{
-			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
 			if(!id)
 				return deep.when(deep.errors.Put("need id on put!"));
 			if (!object.id && !options.query)
 				object.id = id;
-			var search = {id: id};
+			var search = { id: id };
 			var self = this;
 			var schema = this.schema;
-			var context = deep.context;
+			//var context = deep.context;
 
-			self.collection.findOne(search, function(err, obj){		// ownership check here
-				deep.context = context;
-				if (err)
-					return deferred.reject(err);
+			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
+			.done(function(obj){
+				obj = obj[0];
 				if (!obj)
-					return deferred.reject(deep.errors.NotFound("no object found to update"));
+					return deep.errors.NotFound("no object found to update");
 
 				if(schema)
 				{
@@ -199,10 +162,10 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 	                    if(deep.context.session && deep.context.session.remoteUser)
 						{
 							if(deep.context.session.remoteUser.id != obj.userID)
-	                        	return deferred.reject(deep.errors.Owner());
+	                        	return deep.errors.Owner();
 						}
 	                    else
-	                        return deferred.reject(deep.errors.Owner());
+	                        return deep.errors.Owner();
 					}
 				}
 
@@ -218,35 +181,26 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				{
 					var check = self.checkReadOnly(old, obj, options);
 					if(check instanceof Error)
-						return deferred.reject(check);
+						return check;
 					var report = deep.validate(obj, schema);
 					if(!report.valid)
-						return deferred.reject(deep.errors.PreconditionFail(report));
+						return deep.errors.PreconditionFail(report);
 				}
-				self.collection.findAndModify(search, null /* sort */, obj, {upsert:false, "new":true}, function(err, response){
-					deep.context = context;
-					if (err)
-						return deferred.reject(err);
+				return deep.wrapNodeAsynch(self.collection, "findAndModify",[search, null /* sort */, obj, {upsert:false, "new":true}])
+				.done(function(response){
+					response = response[0];
 					if (response)
 						delete response._id;
 					else
-						return deferred.reject(deep.errors.NotFound());
+						return deep.errors.NotFound();
 					//console.log("mongstore (real) put response : ", response);
-					deferred.resolve(response);
+					return response;
 				});
-			});
-
-			
-			return deferred.promise()
-			.done(function (res){
-				if(res && res.headers && res.status && res.body)
-					return deep.errors.Internal(res.body, res.status);
 			});
 		},
 		patch: function(object, options)
 		{
 			//console.log("checking context on patch : ", deep.context)
-			var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
 			if(!id)
@@ -258,13 +212,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var schema = this.schema;
 			var context = deep.context;
 
-
-			self.collection.findOne(search, function(err, obj){		// ownership check here
-				deep.context = context;
-				if (err)
-					return deferred.reject(err);
+			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
+			.done(function(obj){
+				obj = obj[0];
 				if (!obj)
-					return deferred.reject(deep.errors.NotFound("no object found for patching"));
+					return deep.errors.NotFound("no object found for patching");
 
 				if(schema)
 				{
@@ -276,10 +228,10 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 	                    if(deep.context.session && deep.context.session.remoteUser)
 						{
 							if(deep.context.session.remoteUser.id != obj.userID)
-	                        	return deferred.reject(deep.errors.Owner());
+	                        	return deep.errors.Owner();
 						}
 	                    else
-	                        return deferred.reject(deep.errors.Owner());
+	                        return deep.errors.Owner();
 					}
 				}
 
@@ -302,87 +254,25 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					var check = self.checkReadOnly(old, obj, options);
 					//console.log('patch readonly check : ', check)
 					if(check instanceof Error)
-						return deferred.reject(check);
+						return check;
 					var report = deep.validate(obj, schema);
-					if(!report.valid)
-						return deferred.reject(deep.errors.PreconditionFail(report));
-				}
-				self.collection.findAndModify(search, null /* sort */, obj, {upsert:false, "new":true}, function(err, response){
-					deep.context = context;
-					if (err)
-						return deferred.reject(err);
-					if (response)
-						delete response._id;
-					else
-						return deferred.reject(deep.errors.NotFound());
-					//console.log("mongstore (real) put response : ", response);
-					deferred.resolve(response);
-				});
-			});
-
-			
-			return deferred.promise()
-			.done(function (res){
-				if(res && res.headers && res.status && res.body)
-					return deep.errors.Internal(res.body, res.status);
-			});
-		},
-		/*patch:function (content, opt) {
-			//console.log("ObjectSheet patch : ", content, opt);
-			opt = opt || {};
-			var self = this;
-			deep.utils.decorateUpFrom(this, opt, ["baseURI"]);
-			var id = opt.id = opt.id || content.id;
-			if(!opt.id)
-				return deep.when(deep.errors.Patch("json stores need id on PATCH"));
-			var search = {id: id};
-			return deep.when(this.get(id, opt))	// check ownership
-			.done(function(datas){
-				if (!datas || datas.length === 0)
-					return deep.errors.NotFound("no items found in collection with : " + id);
-				var data = datas;
-
-				if(opt.query)
-				{
-					deep.query(data, opt.query, { resultType:"full", allowStraightQueries:false })
-					.forEach(function(entry){
-						entry.value = deep.utils.up(content, entry.value);
-						if(entry.ancestor)
-							entry.ancestor.value[entry.key] = entry.value;
-					});
-					delete opt.query;
-				}
-				else
-					deep.utils.up(content, data);
-				var schema = self.schema;
-				if(schema)
-				{
-					if(schema._deep_ocm_)
-						schema = schema("patch");
-					
-					var check = self.checkReadOnly(datas, data, opt);
-					if(check instanceof Error)
-						return deep.when(check);
-					var report = deep.validate(data, schema);
 					if(!report.valid)
 						return deep.errors.PreconditionFail(report);
 				}
-				
-				//console.log("mongo.put : search : ", search, " - obj : ", obj);
-				self.collection.findAndModify(search, null , data, {upsert:false, "new":true}, function(err, response){
-					if (err)
-						return deferred.reject(err);
+				//console.log("will patch : ", obj, " - old : ", old)
+				//delete obj._id;
+				return deep.wrapNodeAsynch(self.collection, "findAndModify", [search, null /* sort */, obj, {upsert:false, "new":true}])
+				.done(function(response){
+					response = response[0];
 					if (response)
 						delete response._id;
 					else
-						return deferred.reject(deep.errors.NotFound());
+						return deep.errors.NotFound();
 					//console.log("mongstore (real) put response : ", response);
-					deferred.resolve(response);
+					return response;
 				});
-
-				return data;
 			});
-        },*/
+		},
 		MAX_QUERY_LIMIT:500,
 		query: function(query, options)
 		{
@@ -396,7 +286,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var self = this;
 
 			var noRange = false;
-			// add max limit
 			if(!options.start && !options.end)
 			{
 				noRange = true;
@@ -407,9 +296,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			options.end = options.end || 0;
 			if(options.end - options.start > this.MAX_QUERY_LIMIT)
 				options.end = options.start + this.MAX_QUERY_LIMIT;
-			//var oldQuery = query;
 			query += "&limit("+((options.end-options.start)+1)+","+options.start+")";
-
 
 			if(query[0] == "?")
 				query = query.substring(1);
@@ -418,9 +305,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			var meta = x[0], search = x[1];
 			query = "?"+query;
 
-			// range of non-positive length is trivially empty
-			//if (options.limit > options.totalCount)
-			//	options.limit = options.totalCount;
 			if (meta.limit <= 0) {
 				var rangeObject = deep.utils.createRangeObject(0, 0, 0, 0, [], query);
 				rangeObject.results = [];
@@ -429,18 +313,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				return rangeObject;
 			}
 
-			// request full recordset length
-			// N.B. due to collection.count doesn't respect meta.skip and meta.limit
-			// we have to correct returned totalCount manually.
-			// totalCount will be the minimum of unlimited query length and the limit itself
-			
-
 			var totalCountPromise = null;
 			if(!noRange)
 				totalCountPromise = this.count(search);
 
 			var schema = this.schema;
-			// request filtered recordset
 			if(schema)
 			{
 				if(schema._deep_ocm_)
@@ -454,16 +331,12 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				}
 			}
 			var context = deep.context;
-			self.collection.find(search, meta, function(err, cursor){
-				deep.context = context;
-				if (err)
-					return deferred.reject(err);
-				//console.log("mongo cursor : ", cursor);
+			deep.wrapNodeAsynch(self.collection, "find", [search, meta])
+			.done(function(cursor){
+				cursor = cursor[0];
 				cursor.toArray(function(err, results){
 					if (err)
 						return deferred.reject(err);
-					// N.B. results here can be [{$err: 'err-message'}]
-					// the only way I see to distinguish from quite valid result [{_id:..., $err: ...}] is to check for absense of _id
 					if (results && results[0] && results[0].$err !== undefined && results[0]._id === undefined)
 						return deferred.reject(results[0].$err);
 					var fields = meta.fields;
@@ -476,39 +349,29 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 						return deferred.resolve(results);
 					deep.when(totalCountPromise)
 					.done(function (result){
-						deep.context = context;
-						var rangeObject = deep.utils.createRangeObject(options.start, 
-							Math.max(options.start,options.start+results.length-1), 
+						//deep.context = context;
+						var rangeObject = deep.utils.createRangeObject(options.start,
+							Math.max(options.start,options.start+results.length-1),
 							result,
 							results.length,
 							results,
 							query
-							);
-						//console.log("range result : ", rangeObject);
-						//rangeObject.count = results.length;
-						//rangeObject.query = query;
-						//rangeObject.results = results.concat([]);
+						);
 						deferred.resolve(rangeObject);
 					})
 					.fail(function (error) {
 						deferred.reject(error);
 					});
 				});
+			})
+			.fail(function(e){
+				deferred.reject(e);
 			});
+			//________________________
 			//console.log("deep.stores.Mongo will do query : ", query);
-			return deferred.promise().then(function(results){
-				//console.log("deep.stores.Mongo query res : ", results);
-				if(typeof results === 'undefined' || results === null)
-					return deep.errors.NotFound();
-				if(results && results.headers && results.status && results.body)
-					return deep.errors.Server(results.body, results.status);
-			},function  (error) {
-				//console.log("error while calling (query) Mongoservices :  - ", error);
-				return deep.errors.Store(error);
-			});
+			return deferred.promise();
 		},
 		del: function(id, options){
-			var deferred = deep.Deferred();
 			var search = {id: id};
 			var schema = this.schema;
 			if(schema)
@@ -524,116 +387,68 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				}
 			}
 			var context = deep.context;
-			//console.log("Mongo del : ", search);
-			this.collection.remove(search, { safe:true },function(err, result){
-				//console.log("del res : ", err, result);
-				deep.context = context;
-				if (err)
-					return deferred.reject(err);
-				deferred.resolve(result === 1);
+			return deep.wrapNodeAsynch(this.collection, "remove", [search, { safe:true }])
+			.done(function(s){
+				return s[0] === 1;
 			});
-			return deferred.promise();
 		},
 		range:function(start, end, query)
 		{
 			return this.query(query || "", { start:start, end:end });
 		},
 		flush:function(options){
-			var def = deep.Deferred();
 			var self = this;
-			this.init()
-			.done(function(success){
-				self.collection.drop(function(err, done)
-				{
-					//console.log("deep.mongo store flushed");
-					if(err)
-						return def.reject(err);
-					self.ensureIndex({ id: 1 }, { unique: true })
-					.done(function(s){
-						def.resolve(s);
-					})
-					.fail(function(e){
-						def.reject(e);
-					});
+			return this.init()
+			.done(function(){
+				return deep.wrapNodeAsynch(self.collection, "drop", [])
+				.done(function(done){
+					return self.ensureIndex({ id: 1 }, { unique: true });
 				});
 			})
-			.fail(function(error){
-				def.reject(error);
+			.fail(function(e){
+				console.log("flush error : ", e);
 			});
-			return def.promise();
 		},
 		indexes:function(){
-			var def = deep.Deferred();
 			var self = this;
-			this.init()
+			return this.init()
 			.done(function(success){
-				self.collection.indexes(function(err, done)
-				{
-					//console.log("deep.mongo store indexes :", err, done);
-					if(err)
-						return def.reject(err);
-					def.resolve(done || true);
+				return deep.wrapNodeAsynch(self.collection, "indexes", [])
+				.done(function(indexes){
+					return indexes[0];
 				});
-			})
-			.fail(function(error){
-				def.reject(error);
 			});
-			return def.promise();
 		},
 		reIndex:function(){
-			var def = deep.Deferred();
 			var self = this;
-			this.init()
+			return this.init()
 			.done(function(success){
-				self.collection.reIndex(function(err, done)
-				{
-					//console.log("deep.mongo store reIndexed : ", err, done);
-					if(err)
-						return def.reject(err);
-					def.resolve(done || true);
+				return deep.wrapNodeAsynch(self.collection, "reIndex", [])
+				.done(function(indexes){
+					return indexes[0];
 				});
-			})
-			.fail(function(error){
-				def.reject(error);
 			});
-			return def.promise();
 		},
 		ensureIndex:function (properties, options) {
-			var def = deep.Deferred();
 			var self = this;
-			this.init()
+			return this.init()
 			.done(function(success){
-				self.collection.ensureIndex( properties, options, function(err, res){
-					if(err){
-						console.error("Failed to ensuring index on mongo database collection : " + url + " : " + collectionName + " error " + err.message);
-						return def.reject(err);
-					}
-					//console.log("MONGO DB : index ensured");
-					def.resolve(self);
-				});
+				return deep.wrapNodeAsynch(self.collection, "ensureIndex", [properties, options]);
 			})
-			.fail(function(error){
-				def.reject(error);
+			.done(function(indexes){
+				return indexes[0];
 			});
-			return def.promise();
 		},
 		count:function (arg){
-			var def  = deep.Deferred();
-			var context = deep.context;
-			this.collection.count(arg, function(err, totalCount) {
-				deep.context = context;
-				if(err)
-					return def.reject(err);
-				return def.resolve(totalCount);
+			return deep.wrapNodeAsynch(this.collection, "count", [arg])
+			.done(function(totalCount){
+				//console.log("mongo count res : ", totalCount)
+				return totalCount[0];
 			});
-			return def.promise();
 		}
 	});
 
 	deep.utils.sheet(deep.store.ObjectSheet, deep.store.Mongo.prototype);
-
-	//console.log("MONGOSTORE afetr sheet : ",deep.store.Mongo.prototype )
-
 	deep.store.Mongo.create = function(protocole, url, collection, schema, options){
 		return new deep.store.Mongo(protocole, url, collection, schema, options);
 	};
