@@ -4,30 +4,14 @@ if (typeof define !== 'function') {
 
 define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, Unit) {
     
-    //_______________________________________________________________ GENERIC STORE TEST CASES
-    var postTest = {
-        id:"id123",
-        title:"hello",
-        order:2
-    };
-    var putTest = {
-        id:"id123",
-        order:2,
-        otherVar:"yes"
-    };
-    var patchTest = {
-        id:"id123",
-        order:4,
-        otherVar:"yes",
-        newVar:true
-    };
-
     var unit = {
-        title:"deep-mongo generic testcases",
+        title:"deep-mongo/units/generic",
         stopOnError:false,
         setup:function(){
             delete deep.context.session;
-            var store = deep.store.Mongo.create("test", "mongodb://127.0.0.1:27017/testcases", "tests");
+            var counter = Date.now().valueOf();
+            var store = deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests"+counter);
+            store.counter = counter;
             return deep.when(store.init())
             .done(function(){
                 return store.flush();
@@ -37,21 +21,39 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
             });
         },
         clean:deep.compose.before(function (){
+            //console.log("end test : clean ", this.context);
+            //this.context.db().dropDatabase(function(){});
             this.context.flush();
             delete deep.context.session;
-            delete deep.protocoles.test;
+            //delete this.context;
         }),
         tests : {
             post:function(){
-                return deep.store("test")
-                .post( postTest )
-                .equal( postTest )
+                return deep.store(this)
+                .post( {
+                    id:"id123",
+                    title:"hello",
+                    order:2
+                } )
+                .equal( {
+                    id:"id123",
+                    title:"hello",
+                    order:2
+                } )
                 .get("id123")
-                .equal(postTest);
+                .equal({
+                    id:"id123",
+                    title:"hello",
+                    order:2
+                });
             },
             postErrorIfExists:function(){
-                return deep.store("test")
-                .post( postTest )
+                return deep.store(this)
+                .post( {
+                    id:"id123",
+                    title:"hello",
+                    order:2
+                }  )
                 .fail(function(error){
                     if(error.status == 409)   // conflict
                         return "lolipop";
@@ -59,36 +61,59 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("lolipop");
             },
             put:function(){
-                // post
-                return deep.store("test")
-                // put
-                .put(putTest)
-                .equal( putTest )
+                return deep
+                .store(this)
+                .put({
+                    id:"id123",
+                    order:2,
+                    title:"yes"
+                })
+                .equal({
+                    id:"id123",
+                    order:2,
+                    title:"yes"
+                })
                 .get("id123")
-                .equal( putTest );
+                .equal({
+                    id:"id123",
+                    order:2,
+                    title:"yes"
+                });
             },
             patch:function(){
-                // post
-                return deep.store("test")
+                return deep.store(this)
                 .patch({
                     order:4,
                     newVar:true,
                     id:"id123"
                 })
-                .equal(patchTest)
+                .equal({
+                    id:"id123",
+                    order:4,
+                    title:"yes",
+                    newVar:true
+                })
                 .get("id123")
-                .equal(patchTest);
+                .equal({
+                    id:"id123",
+                    order:4,
+                    title:"yes",
+                    newVar:true
+                });
             },
             query:function(){
-                // post
-                return deep.store("test")
-                // query
+                return deep.store(this)
                 .get("?order=4")
-                .equal([patchTest]);
+                .equal([{
+                    id:"id123",
+                    order:4,
+                    title:"yes",
+                    newVar:true
+                }]);
             },
             del:function () {
                 var delDone = false;
-                return deep.store("test")
+                return deep.store(this)
                 .del("id123")
                 .done(function (argument) {
                     delDone = true;
@@ -102,38 +127,41 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
             range:function(){
                 var self = this;
                 return deep.store(this)
+                ///.delay(400)
                 .run("flush")
-                .done(function(s){
-                    this.post({title:"hello"})
-                    .post({title:"hell"})
-                    .post({title:"heaven"})
-                    .post({title:"helicopter"})
-                    .post({title:"heat"})
-                    .post({title:"here"})
-                    .range(2,4)
-                    .done(function(range){
-                        deep.utils.remove(range.results,".//id");
-                        deep.chain.remove(this, ".//id");
-                    })
-                    .equal({ _deep_range_: true,
-                      total: 6,
-                      count: 3,
-                      results:
-                       [ { title: 'heaven' },
-                         { title: 'helicopter' },
-                         { title: 'heat' } ],
-                      start: 2,
-                      end: 4,
-                      hasNext: true,
-                      hasPrevious: true,
-                      query: '?&limit(3,2)'
-                    })
-                    .valuesEqual([
+                //.log()
+                .post({title:"hello"})
+                .post({title:"hell"})
+                .post({title:"heaven"})
+                .post({title:"helicopter"})
+                .post({title:"heat"})
+                .post({title:"here"})
+                .range(2,4)
+                .done(function(range){
+                    deep.utils.remove(range.results,".//id");
+                    deep.chain.remove(this, ".//id");
+                })
+                .equal({ 
+                    _deep_range_: true,
+                    total: 6,
+                    count: 3,
+                    results:
+                    [ 
                         { title: 'heaven' },
                         { title: 'helicopter' },
-                        { title: 'heat' }
-                    ]);
-                });
+                        { title: 'heat' } 
+                    ],
+                    start: 2,
+                    end: 4,
+                    hasNext: true,
+                    hasPrevious: true,
+                    query: '?&limit(3,2)'
+                })
+                .valuesEqual([
+                    { title: 'heaven' },
+                    { title: 'helicopter' },
+                    { title: 'heat' }
+                ]);
             },
             rangeWithQuery:function(){
                 
@@ -244,29 +272,29 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .valuesEqual({ id:"u1", email:"gilles.coomans@gmail.com" });
             },
             privateQuery:function(){
-                return deep.store("test")
+                return deep.store(this)
                 .get("?id=u1")
                 .equal([{ id:"u1", email:"gilles.coomans@gmail.com" }]);
             },
             privatePost:function(){
-                return deep.store("test")
+                return deep.store(this)
                 .del("u2")
                 .post({ id:"u2", email:"john.doe@gmail.com", password:"test"})
                 .equal({ id:"u2", email:"john.doe@gmail.com" })
                 .del("u2");
            },
            privatePatch:function(){
-                return deep.store("test")
+                return deep.store(this)
                 .patch({ id:"u1", email:"john.doe@gmail.com", userID:"u1" })
                 .equal({ id:"u1", email:"john.doe@gmail.com" , userID:"u1" });
            },
            readOnly:function(){
-                deep.protocoles.test.schema = {
+                this.schema = {
                     properties:{
                         email:{ readOnly:true, type:"string" }
                     }
                 };
-                return deep.store("test")
+                return deep.store(this)
                 .patch({ id:"u1", email:"should produce error" })
                 .fail(function(e){
                     if(e.status == 412)
@@ -275,8 +303,8 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("lolipop");
             },
             putErrorIfNotExists:function(){
-                deep.protocoles.test.schema = {};
-                return deep.store("test")
+                this.schema = {};
+                return deep.store(this)
                 .put({ id:"u35", email:"gilles@gmail.com" })
                 .fail(function(error){
                      if(error.status == 404)    // not found
@@ -285,8 +313,8 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("lolipop");
             },
             patchErrorIfNotExists:function(){
-                deep.protocoles.test.schema = {};
-                return deep.store("test")
+                this.schema = {};
+                return deep.store(this)
                 .patch({ id:"u35", email:"gilles@gmail.com" })
                 .fail(function(error){
                      if(error.status == 404)    // not found
@@ -295,8 +323,8 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("lolipop");
             },
             putWithQuery:function(){
-                deep.protocoles.test.schema = {};
-                return deep.store("test")
+                this.schema = {};
+                return deep.store(this)
                 .put("gilles@gmail.com", { id:"u1", query:"/email"})
                 .equal({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1" })
                 .valuesEqual({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1"})
@@ -304,8 +332,8 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal({ id:"u1", email:"gilles@gmail.com", password: 'test', userID:"u1" });
             },
             patchWithQuery:function(){
-                deep.protocoles.test.schema = {};
-                return deep.store("test")
+                this.schema = {};
+                return deep.store(this)
                 .patch("michel@gmail.com", { id:"u1", query:"/email"})
                 .equal({ id:"u1", email:"michel@gmail.com" ,password: 'test', userID:"u1" })
                 .valuesEqual({ id:"u1", email:"michel@gmail.com" ,password: 'test', userID:"u1"})
@@ -313,13 +341,13 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal({ id:"u1", email:"michel@gmail.com", password: 'test', userID:"u1" });
             },
             postValidationFailed:function(){
-                deep.protocoles.test.schema = {
+                this.schema = {
                     properties:{
                         id:{ type:"string", required:true },
                         title:{ type:"number", required:true }
                     }
                 };
-                return deep.store("test")
+                return deep.store(this)
                 .post({ id:"u1", title:"gilles.coomans@gmail.com" })
                 .fail(function(error){
                     if(error && error.status == 412)   // Precondition
@@ -328,20 +356,19 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("lolipop");
             },
             delFalseIfNotExists:function(){
-                return deep.store("test")
+                return deep.store(this)
                 .del('u45')
                 .equal(false);
             },
  
            ownerPatchFail:function(){
-                deep.protocoles.test.schema = {
-                    ownerRestriction:true,
-                    properties:{
-                        password:{ type:"string", "private":true }
-                    }
+                
+                this.schema = {
+                    ownerRestriction:true
                 };
 
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u3" } })
                 .patch({ id:"u1", email:"john.piperzeel@gmail.com"  })
                 .fail(function(e){
                     if(e.status == 403)
@@ -350,19 +377,14 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal("ksss");
             },
             ownerPatchOk:function(){
-                deep.context.session = {
-                    remoteUser:{ id:"u1" }
-                };
-
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u1" } })
                 .patch({ id:"u1", email:"john.piperzeel@gmail.com"  })
-                .equal({ id:"u1", email:"john.piperzeel@gmail.com", userID:"u1"});
+                .equal({ id:"u1", email:"john.piperzeel@gmail.com", password: 'test', userID:"u1"});
             },
             ownerPutFail:function(){
-                deep.context.session = {
-                    remoteUser:{ id:"u2" }
-                };
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u2" } })
                 .put({ id:"u1", email:"john.doe@gmail.com", userID:"u1" })
                 .fail(function(e){
                     if(e.status == 403)
@@ -371,19 +393,14 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal(true);
             },
             ownerPutOk:function(){
-                deep.context.session = {
-                    remoteUser:{ id:"u1" }
-                };
-
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u1" } })
                 .put({ id:"u1", email:"john.doe@gmail.com", userID:"u1" })
                 .equal({ id:"u1", email:"john.doe@gmail.com", userID:"u1" });
             },
             ownerDelFail:function(){
-                deep.context.session = {
-                    remoteUser:{ id:"u2" }
-                };
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u2" } })
                 .del("u1")
                 .equal(false)
                 .context("session", {
@@ -393,10 +410,8 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .equal({ id:"u1", email:"john.doe@gmail.com", userID:"u1" });
             },
             ownerDelOk:function(){
-                deep.context.session = {
-                    remoteUser:{ id:"u1" }
-                };
-                return deep.store("test")
+                return deep.store(this)
+                .context("session", { remoteUser:{ id:"u1" } })
                 .del("u1")
                 .equal(true)
                 .get("u1")
@@ -409,5 +424,5 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
         }
     };
 
-    return new Unit(unit);
+    return unit;
 });
