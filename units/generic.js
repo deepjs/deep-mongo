@@ -2,7 +2,7 @@ if (typeof define !== 'function') {
     var define = require('amdefine')(module);
 }
 
-define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, Unit) {
+define(["require","deepjs/deep"], function (require, deep, Unit) {
     
     var unit = {
         title:"deep-mongo/units/generic",
@@ -325,11 +325,13 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
             putWithQuery:function(){
                 this.schema = {};
                 return deep.store(this)
+                .get("u1")
+                .log()
                 .put("gilles@gmail.com", { id:"u1", query:"/email"})
                 .equal({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1" })
                 .valuesEqual({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1"})
-                .get("u1")
-                .equal({ id:"u1", email:"gilles@gmail.com", password: 'test', userID:"u1" });
+                //.get("u1")
+                //.equal({ id:"u1", email:"gilles@gmail.com", password: 'test', userID:"u1" });
             },
             patchWithQuery:function(){
                 this.schema = {};
@@ -360,18 +362,15 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .del('u45')
                 .equal(false);
             },
- 
            ownerPatchFail:function(){
-                
                 this.schema = {
-                    ownerRestriction:true
+                    ownerRestriction:"userID"
                 };
-
                 return deep.store(this)
                 .context("session", { remoteUser:{ id:"u3" } })
                 .patch({ id:"u1", email:"john.piperzeel@gmail.com"  })
                 .fail(function(e){
-                    if(e.status == 403)
+                    if(e.status == 404) // because restriction
                         return "ksss";
                 })
                 .equal("ksss");
@@ -387,7 +386,7 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                 .context("session", { remoteUser:{ id:"u2" } })
                 .put({ id:"u1", email:"john.doe@gmail.com", userID:"u1" })
                 .fail(function(e){
-                    if(e.status == 403)
+                    if(e.status == 404) // because restriction
                         return true;
                 })
                 .equal(true);
@@ -420,6 +419,60 @@ define(["require","deepjs/deep", "deepjs/deep-unit"], function (require, deep, U
                         return "lolipop";
                 })
                 .equal("lolipop");
+            },
+            filterGet:function(){
+                this.schema = {
+                    filter:"&status=published"
+                };
+                deep.context.session = {};
+                return deep.store(this)
+                .post({ id:"u23", title:"hello", status:"draft" })
+                .get("u23")
+                .fail(function(e){
+                    if(e && e.status == 404)
+                        return "yolli";
+                })
+                .equal('yolli');
+            },
+            filterGet2:function(){
+                this.schema = {
+                    filter:"&status=draft"
+                };
+                return deep.store(this)
+                .get("u23")
+                .equal({ id:"u23", title:"hello", status:"draft" });
+            },
+            filterQuery:function(){
+                this.schema = {
+                    filter:"&status=published"
+                };
+                return deep.store(this)
+                .get("?id=i1")
+                .equal([]);
+            },
+            filterQuery2:function(){
+                this.schema = {
+                    filter:"&status=draft"
+                };
+                return deep.store(this)
+                .get("?id=u23")
+                .equal([{ id:"u23", title:"hello", status:"draft" }]);
+            },
+            filterDel:function(){
+                this.schema = {
+                    filter:"&status=published"
+                };
+                return deep.store(this)
+                .del("u23")
+                .equal(false);
+            },
+            filterDel2:function(){
+                this.schema = {
+                    filter:"&status=draft"
+                };
+                return deep.store(this)
+                .del("u23")
+                .equal(true);
             }
         }
     };
