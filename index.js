@@ -9,7 +9,7 @@ ObjectID = require('bson/lib/bson/objectid').ObjectID,
 rqlToMongo = require("./rql-to-mongo");
 
 
-deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, collectionName, schema, options){
+deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options){
 	if(schema)
 		this.schema = schema;
 	if(url)
@@ -27,7 +27,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				return deep.when.immediate(this);
 			//console.time("mongo.init");
 			this.initialised = true;
-
 			//console.log("MONGO STORE INIT ");
 			options = options || {};
 			var url = options.url || this.url;
@@ -55,35 +54,31 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			});
 		},
 		get: function(id, options){
-			//console.log("Mongo : get : ", id, options);//
+			//console.log("Mongo : get : ", id, options);
 			options = options || {};
 			if(id == 'schema')
 			{
-				//console.log("deep-mongo : get schema : ", this.schema || {});
 				if(this.schema && this.schema._deep_ocm_)
-					return deep.when(this.schema("get"));
+					return this.schema("get");
 				return this.schema || {};
 			}
 			if(!id)
 				id = "";
 			if(!id || id[0] === "?")
 				return this.query(id.substring(1), options);
-			var self = this;
-			var schema = this.schema;
+
 			var search = { id:id };
-			if(schema)
+			var meta = {};
+			var q = "id="+id;
+			if(options.filter)
 			{
-				if(schema._deep_ocm_)
-					schema = schema("get");
-				if(schema.ownerRestriction)
-				{
-                    if(deep.context.session && deep.context.session.remoteUser)
-						search.userID = deep.context.session.remoteUser.id;
-                    else
-                        return deep.when(deep.errors.Owner());
-				}
+				q += options.filter;
+				var x = rqlToMongo.parse(q, {});
+				meta = x[0];
+				search = x[1];
 			}
-			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
+
+			return deep.wrapNodeAsynch(this.collection, "findOne", [search, meta])
 			.done(function(obj){
 				obj = obj[0];
 				if (obj)
@@ -95,28 +90,11 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		},
 		post: function(object, options)
 		{
-			//console.log("Mongo will do post")
-			//var deferred = deep.Deferred();
 			options = options || {};
 			var id = options.id || object.id;
 			if (!id)
 				id = object.id = options.id = ObjectID.createPk().toJSON();
 			var self = this;
-			var search = {id: id};
-			var schema = this.schema;
-			if(schema)
-			{
-				if(schema._deep_ocm_)
-					schema = schema("post");
-				if(schema.ownerRestriction)
-				{
-                    if(deep.context.session && deep.context.session.remoteUser)
-						object.userID = deep.context.session.remoteUser.id;
-                    else
-                        return deep.when(deep.errors.Owner("you need to be loged in before posting on this ressource"));
-				}
-			}
-			var context = deep.context;
 			return deep.wrapNodeAsynch(self.collection,"insert", [object])
 			.fail(function(err){
 				if(err.code == 11000)
@@ -129,7 +107,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 					delete obj._id;
 				else
 					return deep.errors.NotFound();
-				//console.log("Mongo.post : result from asynch wrap : ", obj);
 				return obj;
 			});
 		},
@@ -137,140 +114,28 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		{
 			options = options || {};
 			var id = options.id || object.id;
-			if(!id)
-				return deep.when(deep.errors.Put("need id on put!"));
-			if (!object.id && !options.query)
-				object.id = id;
-			var search = { id: id };
-			var self = this;
-			var schema = this.schema;
-			//var context = deep.context;
-
-			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
-			.done(function(obj){
-				obj = obj[0];
-				if (!obj)
-					return deep.errors.NotFound("no object found to update");
-
-				if(schema)
-				{
-					if(schema._deep_ocm_)
-						schema = schema("put");
-					if(schema.ownerRestriction)
-					{
-						//console.log("checking owner on put : ", deep.context, obj)
-	                    if(deep.context.session && deep.context.session.remoteUser)
-						{
-							if(deep.context.session.remoteUser.id != obj.userID)
-	                        	return deep.errors.Owner();
-						}
-	                    else
-	                        return deep.errors.Owner();
-					}
-				}
-
-				var old = deep.utils.copy(obj);
-				if(options.query)
-					deep.utils.replace(obj, options.query, object);
+			return deep.wrapNodeAsynch(this.collection, "findAndModify",[{id:id}, null /* sort */, object, {upsert:false, "new":true}])
+			.done(function(response){
+				response = response[0];
+				if (response)
+					delete response._id;
 				else
-					obj = object;
-				if(!obj.id)
-					obj.id = id;
-
-				if(schema)
-				{
-					var check = self.checkReadOnly(old, obj, options);
-					if(check instanceof Error)
-						return check;
-					var report = deep.validate(obj, schema);
-					if(!report.valid)
-						return deep.errors.PreconditionFail(report);
-				}
-				return deep.wrapNodeAsynch(self.collection, "findAndModify",[search, null /* sort */, obj, {upsert:false, "new":true}])
-				.done(function(response){
-					response = response[0];
-					if (response)
-						delete response._id;
-					else
-						return deep.errors.NotFound();
-					//console.log("mongstore (real) put response : ", response);
-					return response;
-				});
+					return deep.errors.NotFound();
+				return response;
 			});
 		},
 		patch: function(object, options)
 		{
-			//console.log("checking context on patch : ", deep.context)
 			options = options || {};
 			var id = options.id || object.id;
-			if(!id)
-				return deep.when(deep.errors.Patch("need id on put!"));
-			if (!object.id && !options.query)
-				object.id = id;
-			var search = {id: id};
-			var self = this;
-			var schema = this.schema;
-			var context = deep.context;
-
-			return deep.wrapNodeAsynch(self.collection, "findOne", [search])
-			.done(function(obj){
-				obj = obj[0];
-				if (!obj)
-					return deep.errors.NotFound("no object found for patching");
-
-				if(schema)
-				{
-					if(schema._deep_ocm_)
-						schema = schema("patch");
-					if(schema.ownerRestriction)
-					{
-						//console.log("checking owner on patch : ", deep.context, obj)
-	                    if(deep.context.session && deep.context.session.remoteUser)
-						{
-							if(deep.context.session.remoteUser.id != obj.userID)
-	                        	return deep.errors.Owner();
-						}
-	                    else
-	                        return deep.errors.Owner();
-					}
-				}
-
-				var old = deep.utils.copy(obj);
-				if(options.query)
-				{
-					deep.query(obj, options.query, { resultType:"full", allowStraightQueries:false })
-					.forEach(function(entry){
-						entry.value = deep.utils.up(object, entry.value);
-						if(entry.ancestor)
-							entry.ancestor.value[entry.key] = entry.value;
-					});
-					delete options.query;
-				}
+			return deep.wrapNodeAsynch(this.collection, "findAndModify", [{id: id}, null /* sort */, object, {upsert:false, "new":true}])
+			.done(function(response){
+				response = response[0];
+				if (response)
+					delete response._id;
 				else
-					deep.utils.up(object, obj);
-
-				if(schema)
-				{
-					var check = self.checkReadOnly(old, obj, options);
-					//console.log('patch readonly check : ', check)
-					if(check instanceof Error)
-						return check;
-					var report = deep.validate(obj, schema);
-					if(!report.valid)
-						return deep.errors.PreconditionFail(report);
-				}
-				//console.log("will patch : ", obj, " - old : ", old)
-				//delete obj._id;
-				return deep.wrapNodeAsynch(self.collection, "findAndModify", [search, null /* sort */, obj, {upsert:false, "new":true}])
-				.done(function(response){
-					response = response[0];
-					if (response)
-						delete response._id;
-					else
-						return deep.errors.NotFound();
-					//console.log("mongstore (real) put response : ", response);
-					return response;
-				});
+					return deep.errors.NotFound();
+				return response;
 			});
 		},
 		MAX_QUERY_LIMIT:500,
@@ -298,6 +163,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 				options.end = options.start + this.MAX_QUERY_LIMIT;
 			query += "&limit("+((options.end-options.start)+1)+","+options.start+")";
 
+			if(options.filter)
+				query += options.filter;
 			if(query[0] == "?")
 				query = query.substring(1);
 			// compose search conditions
@@ -317,19 +184,6 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			if(!noRange)
 				totalCountPromise = this.count(search);
 
-			var schema = this.schema;
-			if(schema)
-			{
-				if(schema._deep_ocm_)
-					schema = schema("get");
-				if(schema.ownerRestriction)
-				{
-                    if(deep.context.session && deep.context.session.remoteUser)
-						search.userID = deep.context.session.remoteUser.id;
-                    else
-                        return deep.when(deep.errors.Owner());
-				}
-			}
 			var context = deep.context;
 			deep.wrapNodeAsynch(self.collection, "find", [search, meta])
 			.done(function(cursor){
@@ -372,22 +226,17 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 			return deferred.promise();
 		},
 		del: function(id, options){
-			var search = {id: id};
-			var schema = this.schema;
-			if(schema)
+			var search = {id: id}, meta = null;
+			if(id[0] == "?")
 			{
-				if(schema._deep_ocm_)
-					schema = schema("put");
-				if(schema.ownerRestriction)
-				{
-                    if(deep.context.session && deep.context.session.remoteUser)
-						search.userID = deep.context.session.remoteUser.id;
-                    else
-                        return deep.when(deep.errors.Owner());
-				}
+				id = id.substring(1);
+				// compose search conditions
+				var x = rqlToMongo.parse(id, {});
+				meta = x[0];
+				search = x[1];
 			}
-			var context = deep.context;
-			return deep.wrapNodeAsynch(this.collection, "remove", [search, { safe:true }])
+			meta.safe = true;
+			return deep.wrapNodeAsynch(this.collection, "remove", [search, meta])
 			.done(function(s){
 				return s[0] === 1;
 			});
@@ -442,19 +291,18 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocole, url, col
 		count:function (arg){
 			return deep.wrapNodeAsynch(this.collection, "count", [arg])
 			.done(function(totalCount){
-				//console.log("mongo count res : ", totalCount)
 				return totalCount[0];
 			});
 		}
 	});
 
-	deep.utils.sheet(deep.store.ObjectSheet, deep.store.Mongo.prototype);
-	deep.store.Mongo.create = function(protocole, url, collection, schema, options){
-		return new deep.store.Mongo(protocole, url, collection, schema, options);
+	deep.sheet(deep.store.FullJSONStoreSheet, deep.store.Mongo.prototype);
+	deep.store.Mongo.create = function(protocol, url, collection, schema, options){
+		return new deep.store.Mongo(protocol, url, collection, schema, options);
 	};
 
 	deep.coreUnits = deep.coreUnits || [];
-    deep.coreUnits.push("js::deep-mongo/units/generic");
+	deep.coreUnits.push("js::deep-mongo/units/generic");
 
 	return deep.store.Mongo;
 });
