@@ -1,9 +1,4 @@
-if (typeof define !== 'function') {
-    var define = require('amdefine')(module);
-}
 
-define(["require","deepjs/deep"], function (require, deep, Unit) {
-    
     var unit = {
         title:"deep-mongo/units/generic",
         stopOnError:false,
@@ -327,7 +322,7 @@ define(["require","deepjs/deep"], function (require, deep, Unit) {
                 return deep.store(this)
                 .get("u1")
                 .log()
-                .put("gilles@gmail.com", { id:"u1", query:"/email"})
+                .put("gilles@gmail.com", { id:"u1/email" })
                 .equal({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1" })
                 .valuesEqual({ id:"u1", email:"gilles@gmail.com" ,password: 'test', userID:"u1"})
                 //.get("u1")
@@ -336,7 +331,7 @@ define(["require","deepjs/deep"], function (require, deep, Unit) {
             patchWithQuery:function(){
                 this.schema = {};
                 return deep.store(this)
-                .patch("michel@gmail.com", { id:"u1", query:"/email"})
+                .patch("michel@gmail.com", { id:"u1/email"})
                 .equal({ id:"u1", email:"michel@gmail.com" ,password: 'test', userID:"u1" })
                 .valuesEqual({ id:"u1", email:"michel@gmail.com" ,password: 'test', userID:"u1"})
                 .get("u1")
@@ -477,5 +472,4 @@ define(["require","deepjs/deep"], function (require, deep, Unit) {
         }
     };
 
-    return unit;
-});
+    module.exports = unit;
