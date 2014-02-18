@@ -24,18 +24,20 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 		collectionName:null,
 		init:function(options){
 			if(this.initialised)
-				return deep.when.immediate(this);
+				return this.initialised;
 			//console.time("mongo.init");
-			this.initialised = true;
 			//console.log("MONGO STORE INIT ");
 			options = options || {};
 			var url = options.url || this.url;
 			if(!url)
-				return deep.when(deep.errors.Store("Mongo failed to init : no url provided !"));
+			{
+				this.initialised = deep.when(deep.errors.Store("Mongo failed to init : no url provided !"));
+				return this.initialised; 
+			}
 			var collectionName = options.collectionName || this.collectionName;
 			var self = this;
 			//console.log("MONGO STORE INIT : try connect");
-			return deep.wrapNodeAsynch(mongo, "connect", [url])
+			this.initialised = deep.wrapNodeAsynch(mongo, "connect", [url])
 			.done(function(db){
 				db = db[0];
 				self.db = function(){ return db; };
@@ -52,6 +54,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 			.fail(function(err){
 				console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
 			});
+			return this.initialised;
 		},
 		get: function(id, options){
 			//console.log("Mongo : get : ", id, options);
