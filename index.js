@@ -2,24 +2,23 @@
 if(typeof define !== 'function'){
 	var define = require('amdefine')(module);
 }
-define(function(require){
-var deep = require("deepjs");
-var mongo = require('mongodb'),
-ObjectID = require('bson/lib/bson/objectid').ObjectID,
-rqlToMongo = require("./rql-to-mongo");
-
-
-deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options){
-	if(schema)
-		this.schema = schema;
-	if(url)
-		this.url = url;
-	if(collectionName)
-		this.collectionName = collectionName;
-	if(options)
-		deep.utils.up(options, this);
-},
+define(function(require)
 {
+	var deep = require("deepjs");
+	var mongo = require('mongodb'),
+	ObjectID = require('bson/lib/bson/objectid').ObjectID,
+	rqlToMongo = require("./rql-to-mongo");
+	deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options){
+		if(schema)
+			this.schema = schema;
+		if(url)
+			this.url = url;
+		if(collectionName)
+			this.collectionName = collectionName;
+		if(options)
+			deep.utils.up(options, this);
+	},
+	{
 		url:null,
 		collectionName:null,
 		init:function(options){
@@ -32,7 +31,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 			if(!url)
 			{
 				this.initialised = deep.when(deep.errors.Store("Mongo failed to init : no url provided !"));
-				return this.initialised; 
+				return this.initialised;
 			}
 			var collectionName = options.collectionName || this.collectionName;
 			var self = this;
@@ -52,7 +51,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 				console.log("MONGO DB : initialised : ",url, collectionName);
 			})
 			.fail(function(err){
-				console.error('Failed to connect to mongo database ' + url + ' - error: ' + err.message);
+				console.error('Failed to connect to mongo database ', url, ' - error: ', err.message);
 			});
 			return this.initialised;
 		},
