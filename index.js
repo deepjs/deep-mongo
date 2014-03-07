@@ -5,6 +5,7 @@ if(typeof define !== 'function'){
 define(function(require)
 {
 	var deep = require("deepjs");
+	var deep = require("deepjs/lib/stores/store-sheet");
 	var mongo = require('mongodb'),
 	ObjectID = require('bson/lib/bson/objectid').ObjectID,
 	rqlToMongo = require("./rql-to-mongo");
@@ -298,7 +299,7 @@ define(function(require)
 		}
 	});
 
-	deep.sheet(deep.store.FullJSONStoreSheet, deep.store.Mongo.prototype);
+	deep.sheet(deep.store.fullSheet, deep.store.Mongo.prototype);
 	deep.store.Mongo.create = function(protocol, url, collection, schema, options){
 		return new deep.store.Mongo(protocol, url, collection, schema, options);
 	};
