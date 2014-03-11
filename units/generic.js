@@ -410,7 +410,6 @@ var unit = {
             this.schema = {};
             return deep.store(this)
                 .get("u1")
-                .log()
                 .put("gilles@gmail.com", {
                     id: "u1/email"
                 })
