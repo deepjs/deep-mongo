@@ -101,13 +101,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
     post: function(object, options) {
         options = options || {};
         var id = options.id || object.id;
+        //console.log("Post IDs option : ", options.id, object);
         if (!id)
             id = object.id = options.id = ObjectID.createPk().toJSON();
+        //console.log("Creating IDs : ", id);
         var self = this;
         return deep.wrapNodeAsynch(self.collection, "insert", [object])
             .fail(function(err) {
                 if (err.code == 11000)
-                    return deep.errors.Conflict();
+                    return deep.errors.Conflict("Mongo post failed conflict :", err);
             })
             .done(function(obj) {
                 if (obj && obj[0])
