@@ -5,12 +5,12 @@ var mongo = require('mongodb'),
     ObjectID = require('bson/lib/bson/objectid').ObjectID,
     rqlToMongo = require("./rql-to-mongo");
 deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options) {
-    if (schema)
-        this.schema = schema;
-    if (url)
-        this.url = url;
-    if (collectionName)
-        this.collectionName = collectionName;
+    if(schema && this.schema)
+        deep.utils.up(schema, this.schema);
+    else
+        this.schema = schema || this.schema;
+    this.url = url || this.url;
+    this.collectionName = collectionName || this.collectionName;
     if (options)
         deep.utils.up(options, this);
 }, {
