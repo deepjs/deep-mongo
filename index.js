@@ -4,6 +4,7 @@ require("deepjs/lib/stores/store-sheet");
 var mongo = require('mongodb'),
     ObjectID = require('bson/lib/bson/objectid').ObjectID,
     rqlToMongo = require("./rql-to-mongo");
+
 deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options) {
     if(schema && this.schema)
         deep.utils.up(schema, this.schema);
@@ -35,7 +36,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         options = options || {};
         var url = options.url || this.url;
         if (!url)
-            return deep.when(deep.errors.Store("Mongo failed to init : no url provided !"));
+            return deep.errors.Store("Mongo failed to init : no url provided !");
         var def = this.initialised = deep.Deferred();
         var collectionName = options.collectionName || this.collectionName;
         var self = this;
@@ -53,11 +54,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
                 //console.log("MONGO STORE INIT :  collectioned : ", url, collectionName);
                 coll = coll[0];
                 self.collection = coll;
-                return deep.wrapNodeAsynch(self.collection, "ensureIndex", [{
-                    id: 1
-                }, {
-                    unique: true
-                }]);
+                return self.ensureIndex();
             })
             .done(function() {
                 console.log("MONGO DB : initialised : ", url, collectionName);
@@ -281,17 +278,21 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
     flush: function(options) {
         options = options || {};
         var self = this;
-        return this.init()
+        return deep.wrapNodeAsynch(self.collection, "drop", [])
             .done(function() {
-                return deep.wrapNodeAsynch(self.collection, "drop", [])
-                    .done(function() {
-                        if (options.ensureIndex !== false)
-                            return self.ensureIndex({
-                                id: 1
-                            }, {
-                                unique: true
-                            });
-                    });
+                return self.ensureIndex();
+            })
+            .fail(function(e) {
+                console.log("flush error : ", e);
+            });
+    },
+    dropIndex: function(options) {
+        options = options || {};
+        var self = this;
+        return deep.wrapNodeAsynch(self.collection, "dropIndex", [])
+            .done(function() {
+                if (options.ensureIndex !== false)
+                    return self.ensureIndex();
             })
             .fail(function(e) {
                 console.log("flush error : ", e);
@@ -299,43 +300,38 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
     },
     indexes: function() {
         var self = this;
-        return this.init()
-            .done(function(success) {
-                return deep.wrapNodeAsynch(self.collection, "indexes", [])
-                    .done(function(indexes) {
-                        return indexes[0];
-                    });
+        return deep.wrapNodeAsynch(self.collection, "indexes", [])
+            .done(function(indexes) {
+                return indexes[0];
             });
     },
     reIndex: function() {
         var self = this;
-        return this.init()
-            .done(function(success) {
-                return deep.wrapNodeAsynch(self.collection, "reIndex", [])
-            })
-            .done(function(indexes) {
-                return indexes[0];
-            });
+        return deep.wrapNodeAsynch(self.collection, "reIndex", [])
+        .done(function(indexes) {
+            return indexes[0];
+        });
     },
-    ensureIndex: function(properties, options) {
+    ensureIndex: function(keys, options) {
         var self = this;
-        return this.init()
-            .done(function(success) {
-                return deep.wrapNodeAsynch(self.collection, "ensureIndex", [properties, options]);
-            })
-            .done(function(indexes) {
-                return indexes[0];
-            });
+        if(!keys)
+        {
+            var promises = [];
+            for(var i in self.index)
+                promises.push(deep.wrapNodeAsynch(self.collection, "ensureIndex", [self.index[i].keys, self.index[i].options]));
+            return deep.all(promises);
+        }
+        return deep.wrapNodeAsynch(self.collection, "ensureIndex", [keys, options])
+        .done(function(indexes) {
+            return indexes[0];
+        });
     },
     count: function(arg) {
         var self = this;
-        return this.init()
-            .done(function(success) {
-                return deep.wrapNodeAsynch(self.collection, "count", [arg]);
-            })
-            .done(function(totalCount) {
-                return totalCount[0];
-            });
+        return deep.wrapNodeAsynch(self.collection, "count", [arg])
+        .done(function(totalCount) {
+            return totalCount[0];
+        });
     }
 });
 
