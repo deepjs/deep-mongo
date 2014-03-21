@@ -331,6 +331,14 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
     }
 });
 
+deep.store.Mongo.dropDB = function(url){
+    return deep.wrapNodeAsynch(mongo, "connect", [url])
+    .done(function(db) {
+        //console.log("MONGO STORE DROP DB : ", url);
+        return deep.wrapNodeAsynch(db[0], "dropDatabase", []);
+    });
+}
+
 deep.sheet(deep.store.fullSheet, deep.store.Mongo.prototype);
 deep.store.Mongo.create = function(protocol, url, collection, schema, options) {
     return new deep.store.Mongo(protocol, url, collection, schema, options);
