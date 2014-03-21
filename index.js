@@ -16,6 +16,14 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 }, {
     url: null,
     collectionName: null,
+    index:{
+        id:{ keys:{ id:1 }, options:{ unique:true } }
+    },
+    schema:{
+        properties:{
+            id:{ type:"string", required:false }
+        }
+    },
     init: function(options) {
         if (this.initialised) {
             if (this.initialised._deep_deferred_)
