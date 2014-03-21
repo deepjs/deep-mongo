@@ -3,26 +3,19 @@ var unit = {
     stopOnError: false,
     setup: function() {
         delete deep.context.session;
-        var counter = Date.now().valueOf();
-        var store = deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests" + counter);
-        store.counter = counter;
-
-        return deep.when(store.flush()).done(function() {
-            return store;
-        });
+        var store = deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests");
+        return store;
     },
     clean: deep.compose.before(function() {
         //console.log("end test : clean ", this.context);
         //this.context.db().dropDatabase(function(){});
-        this.context.flush({
-            ensureIndex: false
-        });
-        delete deep.context.session;
+        return deep.store.Mongo.dropDB("mongodb://127.0.0.1:27017/testcases");
         //delete this.context;
     }),
     tests: {
         post: function() {
             return deep.store(this)
+                .flush()
                 .post({
                     id: "id123",
                     title: "hello",
