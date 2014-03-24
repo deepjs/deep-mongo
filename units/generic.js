@@ -3,18 +3,15 @@ var unit = {
     stopOnError: false,
     setup: function() {
         delete deep.context.session;
-        var store = deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests");
-        return store;
+        return deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests");
     },
     clean: deep.compose.before(function() {
-        //console.log("end test : clean ", this.context);
-        //this.context.db().dropDatabase(function(){});
         return deep.store.Mongo.dropDB("mongodb://127.0.0.1:27017/testcases");
-        //delete this.context;
     }),
     tests: {
         post: function() {
-            return deep.store(this)
+            return deep
+                .store(this)
                 .flush()
                 .post({
                     id: "id123",
@@ -119,50 +116,50 @@ var unit = {
             .post({
                 title: "hello"
             })
-                .post({
-                    title: "hell"
-                })
-                .post({
-                    title: "heaven"
-                })
-                .post({
-                    title: "helicopter"
-                })
-                .post({
-                    title: "heat"
-                })
-                .post({
-                    title: "here"
-                })
-                .range(2, 4)
-                .done(function(range) {
-                    deep.utils.remove(range.results, ".//id");
-                    deep.chain.remove(this, ".//id");
-                })
-                .equal({
-                    _deep_range_: true,
-                    total: 6,
-                    count: 3,
-                    results: [{
-                        title: 'heaven'
-                    }, {
-                        title: 'helicopter'
-                    }, {
-                        title: 'heat'
-                    }],
-                    start: 2,
-                    end: 4,
-                    hasNext: true,
-                    hasPrevious: true,
-                    query: '?&limit(3,2)'
-                })
-                .valuesEqual([{
+            .post({
+                title: "hell"
+            })
+            .post({
+                title: "heaven"
+            })
+            .post({
+                title: "helicopter"
+            })
+            .post({
+                title: "heat"
+            })
+            .post({
+                title: "here"
+            })
+            .range(2, 4)
+            .done(function(range) {
+                deep.utils.remove(range.results, ".//id");
+                deep.chain.remove(this, ".//id");
+            })
+            .equal({
+                _deep_range_: true,
+                total: 6,
+                count: 3,
+                results: [{
                     title: 'heaven'
                 }, {
                     title: 'helicopter'
                 }, {
                     title: 'heat'
-                }]);
+                }],
+                start: 2,
+                end: 4,
+                hasNext: true,
+                hasPrevious: true,
+                query: '?&limit(3,2)'
+            })
+            .valuesEqual([{
+                title: 'heaven'
+            }, {
+                title: 'helicopter'
+            }, {
+                title: 'heat'
+            }]);
         },
         rangeWithQuery: function() {
 
