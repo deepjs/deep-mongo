@@ -400,9 +400,7 @@ var unit = {
             this.schema = {};
             return deep.store(this)
                 .get("u1")
-                .put("gilles@gmail.com", {
-                    id: "u1/email"
-                })
+                .put("gilles@gmail.com", "u1/email")
                 .equal({
                     id: "u1",
                     email: "gilles@gmail.com",
@@ -421,9 +419,7 @@ var unit = {
         patchWithQuery: function() {
             this.schema = {};
             return deep.store(this)
-                .patch("michel@gmail.com", {
-                    id: "u1/email"
-                })
+                .patch("michel@gmail.com", "u1/email")
                 .equal({
                     id: "u1",
                     email: "michel@gmail.com",
