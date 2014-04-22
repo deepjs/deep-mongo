@@ -17,6 +17,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 }, {
     url: null,
     collectionName: null,
+    _deep_collection_:true,
     index:{
         id:{ keys:{ id:1 }, options:{ unique:true } }
     },
@@ -44,15 +45,15 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         deep.wrapNodeAsynch(mongo, "connect", [url])
             .done(function(db) {
                 //console.log("MONGO STORE INIT :  connected : ", url, collectionName);
-                db = db[0];
+                //db = db[0];
                 self.db = function() {
                     return db;
                 };
                 return deep.wrapNodeAsynch(db, "collection", [collectionName]);
             })
             .done(function(coll) {
-                //console.log("MONGO STORE INIT :  collectioned : ", url, collectionName);
-                coll = coll[0];
+                // console.log("MONGO STORE INIT :  collectioned : ", url, collectionName);
+                // coll = coll[0];
                 self.collection = coll;
                 return self.ensureIndex();
             })
@@ -69,7 +70,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         return def.promise();
     },
     get: function(id, options) {
-        //console.log("Mongo : get : ", id, options);
+        // console.log("Mongo : get : ", id, options);
         options = options || {};
         if (id == 'schema') {
             if (this.schema && this.schema._deep_ocm_)
@@ -95,7 +96,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
 
         return deep.wrapNodeAsynch(this.collection, "findOne", [search, meta])
             .done(function(obj) {
-                obj = obj[0];
+                //obj = obj[0];
                 if (obj)
                     delete obj._id;
                 else
@@ -117,8 +118,9 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
                     return deep.errors.Conflict("Mongo post failed conflict :", err);
             })
             .done(function(obj) {
-                if (obj && obj[0])
-                    obj = obj[0][0];
+               // console.log("_____________________________    MONGO POST : res ", obj)
+                if (obj)
+                    obj = obj[0];
                 if (obj)
                     delete obj._id;
                 else
@@ -137,14 +139,14 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
                 "new": true
             }
         ])
-            .done(function(response) {
-                response = response[0];
-                if (response)
-                    delete response._id;
-                else
-                    return deep.errors.NotFound();
-                return response;
-            });
+        .done(function(response) {
+            response = response[0];
+            if (response)
+                delete response._id;
+            else
+                return deep.errors.NotFound();
+            return response;
+        });
     },
     patch: function(object, options) {
         options = options || {};
@@ -214,7 +216,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         var context = deep.context;
         deep.wrapNodeAsynch(self.collection, "find", [search, meta])
             .done(function(cursor) {
-                cursor = cursor[0];
+                //cursor = cursor[0];
                 cursor.toArray(function(err, results) {
                     if (err)
                         return deferred.reject(err);
@@ -255,19 +257,26 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
     del: function(id, options) {
         var search = {
             id: id
-        }, meta = null;
-        if (id[0] == "?") {
-            id = id.substring(1);
-            // compose search conditions
-            var x = rqlToMongo.parse(id, {});
-            meta = x[0];
-            search = x[1];
+        }, meta = null, unique = false;
+
+        if(id[0] !== "?")
+        {
+            id = "?id="+id;
+            unique = true;
         }
+        id = id.substring(1);
+        // compose search conditions
+        if(options.filter)
+            id += options.filter;
+        var x = rqlToMongo.parse(id, {});
+        meta = x[0];
+        search = x[1];
         meta.safe = true;
         return deep.wrapNodeAsynch(this.collection, "remove", [search, meta])
-            .done(function(s) {
-                return s[0] === 1;
-            });
+        .done(function(s) {
+            //console.log(" MONGO DEL : ", id, search , meta , s);
+            return s === 1;
+        });
     },
     range: function(start, end, query) {
         return this.query(query || "", {
@@ -302,14 +311,14 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         var self = this;
         return deep.wrapNodeAsynch(self.collection, "indexes", [])
             .done(function(indexes) {
-                return indexes[0];
+                return indexes;
             });
     },
     reIndex: function() {
         var self = this;
         return deep.wrapNodeAsynch(self.collection, "reIndex", [])
         .done(function(indexes) {
-            return indexes[0];
+            return indexes;
         });
     },
     ensureIndex: function(keys, options) {
@@ -323,14 +332,14 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         }
         return deep.wrapNodeAsynch(self.collection, "ensureIndex", [keys, options])
         .done(function(indexes) {
-            return indexes[0];
+            return indexes;
         });
     },
     count: function(arg) {
         var self = this;
         return deep.wrapNodeAsynch(self.collection, "count", [arg])
         .done(function(totalCount) {
-            return totalCount[0];
+            return totalCount;
         });
     }
 });
@@ -339,7 +348,7 @@ deep.store.Mongo.dropDB = function(url){
     return deep.wrapNodeAsynch(mongo, "connect", [url])
     .done(function(db) {
         //console.log("MONGO STORE DROP DB : ", url);
-        return deep.wrapNodeAsynch(db[0], "dropDatabase", []);
+        return deep.wrapNodeAsynch(db, "dropDatabase", []);
     });
 }
 

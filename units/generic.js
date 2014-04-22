@@ -13,6 +13,7 @@ var unit = {
             return deep
                 .store(this)
                 .flush()
+                //.log("_________________________  MONGO POST")
                 .post({
                     id: "id123",
                     title: "hello",
@@ -593,7 +594,7 @@ var unit = {
                 })
                 .get("u23")
                 .fail(function(e) {
-                    if (e && e.status == 404)
+                    if (e.status == 404)
                         return "yolli";
                 })
                 .equal('yolli');
@@ -645,6 +646,25 @@ var unit = {
             return deep.store(this)
                 .del("u23")
                 .equal(true);
+        },
+        transformers:function(){
+            this.schema = {
+                properties:{
+                    label:{ 
+                        type:"string",
+                        transformers:[
+                        function(node){
+                            return node.value+":hello"
+                        }]
+                    }
+                }
+            };
+            return deep.store(this)
+            .post({ label:"weee", status:"draft" })
+            .done(function(s){
+                delete s.id;
+            })
+            .equal({ label:"weee:hello", status:"draft" });
         }
     }
 };
