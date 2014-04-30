@@ -11,7 +11,7 @@ var unit = {
     tests: {
         post: function() {
             return deep
-                .store(this)
+                .rest(this)
                 .flush()
                 //.log("_________________________  MONGO POST")
                 .post({
@@ -32,7 +32,7 @@ var unit = {
                 });
         },
         postErrorIfExists: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .post({
                     id: "id123",
                     title: "hello",
@@ -46,7 +46,7 @@ var unit = {
         },
         put: function() {
             return deep
-                .store(this)
+                .rest(this)
                 .put({
                     id: "id123",
                     order: 2,
@@ -65,7 +65,7 @@ var unit = {
                 });
         },
         patch: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .patch({
                     order: 4,
                     newVar: true,
@@ -86,7 +86,7 @@ var unit = {
                 });
         },
         query: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .get("?order=4")
                 .equal([{
                     id: "id123",
@@ -97,7 +97,7 @@ var unit = {
         },
         del: function() {
             var delDone = false;
-            return deep.store(this)
+            return deep.rest(this)
                 .del("id123")
                 .done(function(argument) {
                     delDone = true;
@@ -110,9 +110,9 @@ var unit = {
         },
         range: function() {
             var self = this;
-            return deep.store(this)
+            return deep.rest(this)
             ///.delay(400)
-            .run("flush")
+            .flush()
             //.log()
             .post({
                 title: "hello"
@@ -164,8 +164,8 @@ var unit = {
         },
         rangeWithQuery: function() {
 
-            return deep.store(this)
-                .run("flush")
+            return deep.rest(this)
+                .flush()
                 .post({
                     id: "u1",
                     count: 1
@@ -227,7 +227,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .rpc("testrpc", [1456, "world"], "u1")
                 .equal({
                     id: "u1",
@@ -263,7 +263,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .rpc("testrpc", [1456, "world"], "u24")
                 .fail(function(error) {
                     if (error.status == 404) // not found
@@ -282,7 +282,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .rpc("testrpco", [1456, "world"], "u1")
                 .fail(function(error) {
                     if (error.status == 405) // not found
@@ -299,8 +299,8 @@ var unit = {
                     }
                 }
             };
-            return deep.store(this)
-                .run("flush")
+            return deep.rest(this)
+                .flush()
                 .post({
                     id: "u1",
                     email: "gilles.coomans@gmail.com",
@@ -317,7 +317,7 @@ var unit = {
                 });
         },
         privateQuery: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .get("?id=u1")
                 .equal([{
                     id: "u1",
@@ -325,7 +325,7 @@ var unit = {
                 }]);
         },
         privatePost: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .del("u2")
                 .post({
                     id: "u2",
@@ -339,7 +339,7 @@ var unit = {
                 .del("u2");
         },
         privatePatch: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .patch({
                     id: "u1",
                     email: "john.doe@gmail.com",
@@ -360,7 +360,7 @@ var unit = {
                     }
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .patch({
                     id: "u1",
                     email: "should produce error"
@@ -373,7 +373,7 @@ var unit = {
         },
         putErrorIfNotExists: function() {
             this.schema = {};
-            return deep.store(this)
+            return deep.rest(this)
                 .put({
                     id: "u35",
                     email: "gilles@gmail.com"
@@ -386,7 +386,7 @@ var unit = {
         },
         patchErrorIfNotExists: function() {
             this.schema = {};
-            return deep.store(this)
+            return deep.rest(this)
                 .patch({
                     id: "u35",
                     email: "gilles@gmail.com"
@@ -399,7 +399,7 @@ var unit = {
         },
         putWithQuery: function() {
             this.schema = {};
-            return deep.store(this)
+            return deep.rest(this)
                 .get("u1")
                 .put("gilles@gmail.com", "u1/email")
                 .equal({
@@ -419,7 +419,7 @@ var unit = {
         },
         patchWithQuery: function() {
             this.schema = {};
-            return deep.store(this)
+            return deep.rest(this)
                 .patch("michel@gmail.com", "u1/email")
                 .equal({
                     id: "u1",
@@ -454,7 +454,7 @@ var unit = {
                     }
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .post({
                     id: "u1",
                     title: "gilles.coomans@gmail.com"
@@ -466,7 +466,7 @@ var unit = {
                 .equal("lolipop");
         },
         delFalseIfNotExists: function() {
-            return deep.store(this)
+            return deep.rest(this)
                 .del('u45')
                 .equal(false);
         },
@@ -474,8 +474,8 @@ var unit = {
             this.schema = {
                 ownerRestriction: "userID"
             };
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u3"
                     }
@@ -491,8 +491,8 @@ var unit = {
                 .equal("ksss");
         },
         ownerPatchOk: function() {
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u1"
                     }
@@ -509,8 +509,8 @@ var unit = {
                 });
         },
         ownerPutFail: function() {
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u2"
                     }
@@ -527,8 +527,8 @@ var unit = {
                 .equal(true);
         },
         ownerPutOk: function() {
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u1"
                     }
@@ -545,15 +545,15 @@ var unit = {
                 });
         },
         ownerDelFail: function() {
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u2"
                     }
                 })
                 .del("u1")
                 .equal(false)
-                .context("session", {
+                .toContext("session", {
                     user: {
                         id: "u1"
                     }
@@ -566,8 +566,8 @@ var unit = {
                 });
         },
         ownerDelOk: function() {
-            return deep.store(this)
-                .context("session", {
+            return deep.rest(this)
+                .toContext("session", {
                     user: {
                         id: "u1"
                     }
@@ -586,7 +586,7 @@ var unit = {
                 filter: "&status=published"
             };
             deep.context.session = {};
-            return deep.store(this)
+            return deep.rest(this)
                 .post({
                     id: "u23",
                     title: "hello",
@@ -603,7 +603,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .get("u23")
                 .equal({
                     id: "u23",
@@ -615,7 +615,7 @@ var unit = {
             this.schema = {
                 filter: "&status=published"
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .get("?id=i1")
                 .equal([]);
         },
@@ -623,7 +623,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .get("?id=u23")
                 .equal([{
                     id: "u23",
@@ -635,7 +635,7 @@ var unit = {
             this.schema = {
                 filter: "&status=published"
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .del("u23")
                 .equal(false);
         },
@@ -643,7 +643,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.store(this)
+            return deep.rest(this)
                 .del("u23")
                 .equal(true);
         },
@@ -659,7 +659,7 @@ var unit = {
                     }
                 }
             };
-            return deep.store(this)
+            return deep.rest(this)
             .post({ label:"weee", status:"draft" })
             .done(function(s){
                 delete s.id;
