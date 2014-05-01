@@ -115,52 +115,50 @@ var unit = {
             .flush()
             //.log()
             .post({
-                title: "hello"
+                title: "hello",
+                id:'e1'
             })
             .post({
-                title: "hell"
+                title: "hell",
+                id:'e2'
             })
             .post({
-                title: "heaven"
+                title: "heaven",
+                id:'e3'
             })
             .post({
-                title: "helicopter"
+                title: "helicopter",
+                id:'e4'
             })
             .post({
-                title: "heat"
+                title: "heat",
+                id:'e5'
             })
             .post({
-                title: "here"
+                title: "here",
+                id:'e6'
             })
             .range(2, 4)
-            .done(function(range) {
-                deep.utils.remove(range.results, ".//id");
-                deep.chain.remove(this, ".//id");
-            })
             .equal({
                 _deep_range_: true,
                 total: 6,
                 count: 3,
                 results: [{
-                    title: 'heaven'
+                    title: 'heaven',
+                    id:'e3'
                 }, {
-                    title: 'helicopter'
+                    title: 'helicopter',
+                    id:'e4'
                 }, {
-                    title: 'heat'
+                    title: 'heat',
+                    id:'e5'
                 }],
                 start: 2,
                 end: 4,
                 hasNext: true,
                 hasPrevious: true,
                 query: '?&limit(3,2)'
-            })
-            .valuesEqual([{
-                title: 'heaven'
-            }, {
-                title: 'helicopter'
-            }, {
-                title: 'heat'
-            }]);
+            });
         },
         rangeWithQuery: function() {
 
@@ -207,14 +205,7 @@ var unit = {
                     hasNext: false,
                     hasPrevious: true,
                     query: "?count=ge=3&limit(3,2)"
-                })
-                .valuesEqual([{
-                    id: "u5",
-                    count: 5
-                }, {
-                    id: "u6",
-                    count: 6
-                }]);
+                });
         },
         rpc: function() {
             var checker = {};
@@ -230,11 +221,6 @@ var unit = {
             return deep.rest(this)
                 .rpc("testrpc", [1456, "world"], "u1")
                 .equal({
-                    id: "u1",
-                    count: 1,
-                    decorated: "hello rpc"
-                })
-                .valuesEqual({
                     id: "u1",
                     count: 1,
                     decorated: "hello rpc"
@@ -311,10 +297,6 @@ var unit = {
                     id: "u1",
                     email: "gilles.coomans@gmail.com"
                 })
-                .valuesEqual({
-                    id: "u1",
-                    email: "gilles.coomans@gmail.com"
-                });
         },
         privateQuery: function() {
             return deep.rest(this)
@@ -408,12 +390,6 @@ var unit = {
                     password: 'test',
                     userID: "u1"
                 })
-                .valuesEqual({
-                    id: "u1",
-                    email: "gilles@gmail.com",
-                    password: 'test',
-                    userID: "u1"
-                })
             //.get("u1")
             //.equal({ id:"u1", email:"gilles@gmail.com", password: 'test', userID:"u1" });
         },
@@ -422,12 +398,6 @@ var unit = {
             return deep.rest(this)
                 .patch("michel@gmail.com", "u1/email")
                 .equal({
-                    id: "u1",
-                    email: "michel@gmail.com",
-                    password: 'test',
-                    userID: "u1"
-                })
-                .valuesEqual({
                     id: "u1",
                     email: "michel@gmail.com",
                     password: 'test',
