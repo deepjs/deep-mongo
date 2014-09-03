@@ -2,7 +2,7 @@
   "name": "deep-mongo",
   "description":"mongodb driver (store) for deepjs",
   "author":"Gilles Coomans <gilles.coomans@gmail.com>", 
-  "version": "0.5.4",
+  "version": "0.6.0",
   "contributors": ["Philippe Delabye <phil@chemicalrules.net>"],
   "licenses": [
     {
@@ -15,7 +15,7 @@
     "url": "https://github.com/deepjs/deep-mongo.git"
   },
   "dependencies": {
-    "deepjs": ">=0.10.2",
+    "deepjs": ">=0.13.1",
     "mongodb":">=0.9.9-8",
     "bson":">=0.2.3",
     "rql":"~0.3.1"
