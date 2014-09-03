@@ -2,7 +2,7 @@ var unit = {
     title: "deep-mongo/units/generic",
     stopOnError: false,
     setup: function() {
-        delete deep.context.session;
+        delete deep.Promise.context.session;
         return deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests");
     },
     clean: deep.compose.before(function() {
@@ -11,7 +11,7 @@ var unit = {
     tests: {
         post: function() {
             return deep
-                .rest(this)
+                .restful(this)
                 .flush()
                 //.log("_________________________  MONGO POST")
                 .post({
@@ -32,7 +32,7 @@ var unit = {
                 });
         },
         postErrorIfExists: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .post({
                     id: "id123",
                     title: "hello",
@@ -46,7 +46,7 @@ var unit = {
         },
         put: function() {
             return deep
-                .rest(this)
+                .restful(this)
                 .put({
                     id: "id123",
                     order: 2,
@@ -65,7 +65,7 @@ var unit = {
                 });
         },
         patch: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .patch({
                     order: 4,
                     newVar: true,
@@ -86,7 +86,7 @@ var unit = {
                 });
         },
         query: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("?order=4")
                 .equal([{
                     id: "id123",
@@ -97,7 +97,7 @@ var unit = {
         },
         del: function() {
             var delDone = false;
-            return deep.rest(this)
+            return deep.restful(this)
                 .del("id123")
                 .done(function(argument) {
                     delDone = true;
@@ -110,7 +110,7 @@ var unit = {
         },
         range: function() {
             var self = this;
-            return deep.rest(this)
+            return deep.restful(this)
             ///.delay(400)
             .flush()
             //.log()
@@ -162,7 +162,7 @@ var unit = {
         },
         rangeWithQuery: function() {
 
-            return deep.rest(this)
+            return deep.restful(this)
                 .flush()
                 .post({
                     id: "u1",
@@ -218,7 +218,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .rpc("testrpc", [1456, "world"], "u1")
                 .equal({
                     id: "u1",
@@ -249,7 +249,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .rpc("testrpc", [1456, "world"], "u24")
                 .fail(function(error) {
                     if (error.status == 404) // not found
@@ -268,7 +268,7 @@ var unit = {
                     return handler.save();
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .rpc("testrpco", [1456, "world"], "u1")
                 .fail(function(error) {
                     if (error.status == 405) // not found
@@ -285,7 +285,7 @@ var unit = {
                     }
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .flush()
                 .post({
                     id: "u1",
@@ -299,7 +299,7 @@ var unit = {
                 })
         },
         privateQuery: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("?id=u1")
                 .equal([{
                     id: "u1",
@@ -307,7 +307,7 @@ var unit = {
                 }]);
         },
         privatePost: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .del("u2")
                 .post({
                     id: "u2",
@@ -321,7 +321,7 @@ var unit = {
                 .del("u2");
         },
         privatePatch: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .patch({
                     id: "u1",
                     email: "john.doe@gmail.com",
@@ -342,7 +342,7 @@ var unit = {
                     }
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .patch({
                     id: "u1",
                     email: "should produce error"
@@ -355,7 +355,7 @@ var unit = {
         },
         putErrorIfNotExists: function() {
             this.schema = {};
-            return deep.rest(this)
+            return deep.restful(this)
                 .put({
                     id: "u35",
                     email: "gilles@gmail.com"
@@ -368,7 +368,7 @@ var unit = {
         },
         patchErrorIfNotExists: function() {
             this.schema = {};
-            return deep.rest(this)
+            return deep.restful(this)
                 .patch({
                     id: "u35",
                     email: "gilles@gmail.com"
@@ -381,7 +381,7 @@ var unit = {
         },
         putWithQuery: function() {
             this.schema = {};
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("u1")
                 .put("gilles@gmail.com", "u1/email")
                 .equal({
@@ -395,7 +395,7 @@ var unit = {
         },
         patchWithQuery: function() {
             this.schema = {};
-            return deep.rest(this)
+            return deep.restful(this)
                 .patch("michel@gmail.com", "u1/email")
                 .equal({
                     id: "u1",
@@ -424,7 +424,7 @@ var unit = {
                     }
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .post({
                     id: "u1",
                     title: "gilles.coomans@gmail.com"
@@ -436,7 +436,7 @@ var unit = {
                 .equal("lolipop");
         },
         delFalseIfNotExists: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .del('u45')
                 .equal(false);
         },
@@ -444,7 +444,7 @@ var unit = {
             this.schema = {
                 ownerRestriction: "userID"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u3"
@@ -461,7 +461,7 @@ var unit = {
                 .equal("ksss");
         },
         ownerPatchOk: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u1"
@@ -479,7 +479,7 @@ var unit = {
                 });
         },
         ownerPutFail: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u2"
@@ -497,7 +497,7 @@ var unit = {
                 .equal(true);
         },
         ownerPutOk: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u1"
@@ -515,7 +515,7 @@ var unit = {
                 });
         },
         ownerDelFail: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u2"
@@ -536,7 +536,7 @@ var unit = {
                 });
         },
         ownerDelOk: function() {
-            return deep.rest(this)
+            return deep.restful(this)
                 .toContext("session", {
                     user: {
                         id: "u1"
@@ -555,8 +555,8 @@ var unit = {
             this.schema = {
                 filter: "&status=published"
             };
-            deep.context.session = {};
-            return deep.rest(this)
+            deep.Promise.context.session = {};
+            return deep.restful(this)
                 .post({
                     id: "u23",
                     title: "hello",
@@ -573,7 +573,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("u23")
                 .equal({
                     id: "u23",
@@ -585,7 +585,7 @@ var unit = {
             this.schema = {
                 filter: "&status=published"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("?id=i1")
                 .equal([]);
         },
@@ -593,7 +593,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .get("?id=u23")
                 .equal([{
                     id: "u23",
@@ -605,7 +605,7 @@ var unit = {
             this.schema = {
                 filter: "&status=published"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .del("u23")
                 .equal(false);
         },
@@ -613,7 +613,7 @@ var unit = {
             this.schema = {
                 filter: "&status=draft"
             };
-            return deep.rest(this)
+            return deep.restful(this)
                 .del("u23")
                 .equal(true);
         },
@@ -629,7 +629,7 @@ var unit = {
                     }
                 }
             };
-            return deep.rest(this)
+            return deep.restful(this)
             .post({ label:"weee", status:"draft" })
             .done(function(s){
                 delete s.id;

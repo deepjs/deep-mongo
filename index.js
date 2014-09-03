@@ -1,19 +1,23 @@
 "use strict";
 var deep = require("deepjs");
-require("deepjs/lib/stores/store-sheet");
+require("deep-restful/lib/store-sheet");
+var Store = require("deep-restful/lib/store");
+var ranger = require("deep-restful/lib/range");
 var mongo = require('mongodb'),
     ObjectID = require('bson/lib/bson/objectid').ObjectID,
     rqlToMongo = require("./rql-to-mongo");
 
-deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, collectionName, schema, options) {
+
+deep.store = deep.store || {};
+deep.store.Mongo = deep.compose.Classes(Store, function(protocol, url, collectionName, schema, options) {
     if(schema && this.schema)
-        deep.utils.up(schema, this.schema);
+        deep.aup(schema, this.schema);
     else
         this.schema = schema || this.schema;
     this.url = url || this.url;
     this.collectionName = collectionName || this.collectionName;
     if (options)
-        deep.utils.up(options, this);
+        deep.aup(options, this);
 }, {
     url: null,
     collectionName: null,
@@ -202,7 +206,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         query = "?" + query;
 
         if (meta.limit <= 0) {
-            var rangeObject = deep.utils.createRangeObject(0, 0, 0, 0, [], query);
+            var rangeObject = ranger.createRangeObject(0, 0, 0, 0, [], query);
             rangeObject.results = [];
             rangeObject.count = 0;
             rangeObject.query = query;
@@ -213,7 +217,7 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
         if (!noRange)
             totalCountPromise = this.count(search);
 
-        var context = deep.context;
+        var context = deep.Promise.context;
         deep.wrapNodeAsynch(self.collection, "find", [search, meta])
             .done(function(cursor) {
                 //cursor = cursor[0];
@@ -232,8 +236,8 @@ deep.store.Mongo = deep.compose.Classes(deep.Store, function(protocol, url, coll
                         return deferred.resolve(results);
                     deep.when(totalCountPromise)
                         .done(function(result) {
-                            //deep.context = context;
-                            var rangeObject = deep.utils.createRangeObject(options.start,
+                            //deep.Promise.context = context;
+                            var rangeObject = ranger.createRangeObject(options.start,
                                 Math.max(options.start, options.start + results.length - 1),
                                 result,
                                 results.length,
