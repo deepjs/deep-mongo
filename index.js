@@ -347,7 +347,7 @@ deep.store.Mongo = deep.compose.Classes(Store, function(protocol, url, collectio
         });
     }
 });
-deep.sheet(deep.store.fullSheet, deep.store.Mongo.prototype);
+deep.sheet(deep.store.Mongo.prototype, deep.store.fullSheet);
 deep.Mongo = deep.store.Mongo.create = function(protocol, url, collection, schema, options) {
     return new deep.store.Mongo(protocol, url, collection, schema, options);
 };
