@@ -2,7 +2,7 @@
  "name": "deep-mongo",
  "description": "mongodb driver (store) for deepjs",
  "author": "Gilles Coomans <gilles.coomans@gmail.com>",
- "version": "0.6.1",
+ "version": "0.6.2",
  "contributors": [
   "Philippe Delabye <phil@chemicalrules.net>"
  ],
