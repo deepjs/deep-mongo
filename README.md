@@ -1,11 +1,10 @@
-deep-mongo provides a restful styled mongodb store usable with deep and queriable in RQL (https://github.com/persvr/rql).
+# deep-mongo
 
-## Required
+deep-mongo provides a restful styled mongodb store usable with deepjs.
+By other, it make mongodb queriable with RQL (https://github.com/persvr/rql).
 
-* deepjs >= v0.9.9
-* mongodb >=0.9.9-8
-* bson >=0.2.3
-* node >= 0.10.0
+See [deep-restful](https://github.com/deepjs/deep-restful) for full API description.
+
 
 ## Install
 ```shell
@@ -16,31 +15,30 @@ deep-mongo provides a restful styled mongodb store usable with deep and queriabl
 
 ```javascript
 
-	var deep = require("deepjs");
-	require("deep-mongo").create("items", "mongodb://127.0.0.1:27017/test", "items");
+	var deep = require("deepjs"); // load core
+	require("deep-restful"); // load chained API
+	require("deep-mongo"); // load driver
+
+	deep.Mongo("items", "mongodb://127.0.0.1:27017/test", "items");
 
 	//...
 
-	deep.store("items")
-	.post({ weeeee:"gdgdgdgdgdggd "})
-	.log()
+	deep.restful("items")
+	.post({ something:"yes"})
+	.slog()
 	.put({
 		hello:"putted object",
-		test:12,
-		id:"525c4807d75ffe599c3ca002"
+		test:12
 	})
-	.log()
-	.get("525c4807d75ffe599c3ca002")
-	.log()
+	.slog()
 	.patch({
 		hello:"patched object",
-		id:"525c4807d75ffe599c3ca002"
 	})
-	.log()
-	.get("?id=525c4807d75ffe599c3ca002")
+	.slog()
+	.get() // get all
 	.log();
 
 ```
 
 
-see [testcases](./units/generic.js) for full usage. full docs coming soon.
+see [testcases](./units/generic.js) for full usage. 
