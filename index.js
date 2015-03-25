@@ -8,8 +8,7 @@ var mongo = require('mongodb'),
     rqlToMongo = require("./rql-to-mongo");
 
 
-deep.store = deep.store || {};
-deep.store.Mongo = deep.compose.Classes(Store, function(protocol, url, collectionName, schema, options) {
+deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema, options) {
     if(schema && this.schema)
         deep.aup(schema, this.schema);
     else
@@ -346,12 +345,9 @@ deep.store.Mongo = deep.compose.Classes(Store, function(protocol, url, collectio
             return totalCount;
         });
     }
-});
-deep.sheet(deep.store.Mongo.prototype, deep.store.fullSheet);
-deep.Mongo = deep.store.Mongo.create = function(protocol, url, collection, schema, options) {
-    return new deep.store.Mongo(protocol, url, collection, schema, options);
-};
-deep.Mongo.drop = deep.store.Mongo.dropDB = function(url){
+}, deep.store.fullSheet);
+
+deep.Mongo.drop = function(url){
     return deep.wrapNodeAsynch(mongo, "connect", [url])
     .done(function(db) {
         //console.log("MONGO STORE DROP DB : ", url);
@@ -361,4 +357,7 @@ deep.Mongo.drop = deep.store.Mongo.dropDB = function(url){
 deep.coreUnits = deep.coreUnits || [];
 deep.coreUnits.push("js::deep-mongo/units/generic");
 
-module.exports = deep.store.Mongo;
+module.exports = deep.Mongo;
+
+
+
