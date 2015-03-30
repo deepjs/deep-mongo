@@ -3,10 +3,10 @@ var unit = {
     stopOnError: false,
     setup: function() {
         delete deep.Promise.context.session;
-        return deep.store.Mongo.create(null, "mongodb://127.0.0.1:27017/testcases", "tests");
+        return new deep.Mongo("mongo-test", "mongodb://127.0.0.1:27017/deep-testcases", "deepmongotest");
     },
     clean: deep.compose.before(function() {
-        return deep.store.Mongo.dropDB("mongodb://127.0.0.1:27017/testcases");
+       return deep.Mongo.drop("mongodb://127.0.0.1:27017/deep-testcases");
     }),
     tests: {
         post: function() {
@@ -231,7 +231,7 @@ var unit = {
                     count: 1,
                     decorated: "hello rpc"
                 })
-                .deep(checker)
+                .nodes(checker)
                 .equal({
                     throughRPC: true,
                     args: [1456, "world"],
@@ -281,10 +281,11 @@ var unit = {
                 properties: {
                     password: {
                         type: "string",
-                        "private": true
+                        "private": false
                     }
                 }
             };
+            var self = this;
             return deep.restful(this)
                 .flush()
                 .post({
@@ -295,8 +296,17 @@ var unit = {
                 .get("u1")
                 .equal({
                     id: "u1",
-                    email: "gilles.coomans@gmail.com"
+                    email: "gilles.coomans@gmail.com",
+                    password: "test"
                 })
+                .done(function(s){
+                    self.schema.properties.password["private"] = true;
+                })
+                .get("u1")
+                .equal({
+                    id: "u1",
+                    email: "gilles.coomans@gmail.com"
+                });
         },
         privateQuery: function() {
             return deep.restful(this)
@@ -380,9 +390,8 @@ var unit = {
                 .equal("lolipop");
         },
         putWithQuery: function() {
-            this.schema = {};
+            this.schema = { };
             return deep.restful(this)
-                .get("u1")
                 .put("gilles@gmail.com", "u1/email")
                 .equal({
                     id: "u1",
@@ -441,9 +450,9 @@ var unit = {
                 .equal(false);
         },
         ownerPatchFail: function() {
-            this.schema = {
-                ownerRestriction: "userID"
-            };
+            this.schema = {};
+            this.ownerRestriction = "full";
+            this.ownerID = "userID";
             return deep.restful(this)
                 .toContext("session", {
                     user: {
@@ -552,6 +561,8 @@ var unit = {
                 .equal("lolipop");
         },
         filterGet: function() {
+            this.ownerRestriction = null;
+            this.ownerID = null;
             this.schema = {
                 filter: "&status=published"
             };
@@ -622,7 +633,7 @@ var unit = {
                 properties:{
                     label:{ 
                         type:"string",
-                        transformers:[
+                        transform:[
                         function(node){
                             return node.value+":hello"
                         }]
