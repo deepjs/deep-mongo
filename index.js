@@ -121,7 +121,8 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
                     return deep.errors.Conflict("Mongo post failed conflict :", err);
             })
             .done(function(obj) {
-               // console.log("_____________________________    MONGO POST : res ", obj)
+                obj = obj.ops;
+                //console.log("_____________________________    MONGO POST : res ", obj.ops)
                 if (obj)
                     obj = obj[0];
                 if (obj)
@@ -143,7 +144,8 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
             }
         ])
         .done(function(response) {
-            response = response[0];
+            //console.log('mongo put : response : ', response);
+            response = response.value;
             if (response)
                 delete response._id;
             else
@@ -163,7 +165,8 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
             }
         ])
             .done(function(response) {
-                response = response[0];
+           // console.log('mongo patch : response : ', response);
+                response = response.value;
                 if (response)
                     delete response._id;
                 else
@@ -216,7 +219,6 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
         if (!noRange)
             totalCountPromise = this.count(search);
 
-        var context = deep.Promise.context;
         deep.wrapNodeAsynch(self.collection, "find", [search, meta])
             .done(function(cursor) {
                 //cursor = cursor[0];
@@ -235,7 +237,6 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
                         return deferred.resolve(results);
                     deep.when(totalCountPromise)
                         .done(function(result) {
-                            //deep.Promise.context = context;
                             var rangeObject = ranger.createRangeObject(options.start,
                                 Math.max(options.start, options.start + results.length - 1),
                                 result,
@@ -277,8 +278,8 @@ deep.Mongo = deep.Classes(Store, function(protocol, url, collectionName, schema,
         meta.safe = true;
         return deep.wrapNodeAsynch(this.collection, "remove", [search, meta])
         .done(function(s) {
-            //console.log(" MONGO DEL : ", id, search , meta , s);
-            return s === 1;
+            //console.log(" MONGO DEL : ", id, search , meta , s, s.result.ok);
+            return (s.result.ok === 1 && s.result.n >= 1);
         });
     },
     range: function(start, end, query) {
