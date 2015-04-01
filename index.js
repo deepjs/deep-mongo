@@ -356,7 +356,7 @@ deep.Mongo.drop = function(url){
     });
 };
 deep.coreUnits = deep.coreUnits || [];
-deep.coreUnits.push("js::deep-mongo/units/generic");
+deep.coreUnits.push("req::deep-mongo/units/generic");
 
 module.exports = deep.Mongo;
 
